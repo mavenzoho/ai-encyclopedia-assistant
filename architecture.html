@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Encyclopedia - Architecture Diagram</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .diagram {
+            width: 1100px;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+        }
+        .title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 14px;
+            color: #6c7a89;
+            margin-bottom: 40px;
+        }
+        svg { width: 100%; height: auto; }
+        .box { rx: 12; ry: 12; }
+        .label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; fill: #2c3e50; }
+        .label-bold { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; font-weight: 700; }
+        .label-small { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #6c7a89; }
+        .arrow { stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .arrow-bi { stroke-width: 2; fill: none; marker-end: url(#arrowhead); marker-start: url(#arrowhead-start); }
+        .section-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; }
+    </style>
+</head>
+<body>
+<div class="diagram">
+    <div class="title">AI Encyclopedia Assistant - System Architecture</div>
+    <div class="subtitle">Gemini Live Agent Challenge | Creative Storyteller Category | Google ADK + Gemini 2.5 Flash</div>
+
+    <svg viewBox="0 0 1020 620" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#555" />
+            </marker>
+            <marker id="arrowhead-start" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                <polygon points="10 0, 0 3.5, 10 7" fill="#555" />
+            </marker>
+            <!-- Gradients -->
+            <linearGradient id="grad-frontend" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" style="stop-color:#e8f8f5" />
+                <stop offset="100%" style="stop-color:#d1f2eb" />
+            </linearGradient>
+            <linearGradient id="grad-backend" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" style="stop-color:#ebf5fb" />
+                <stop offset="100%" style="stop-color:#d4e6f1" />
+            </linearGradient>
+            <linearGradient id="grad-gemini" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" style="stop-color:#fef9e7" />
+                <stop offset="100%" style="stop-color:#fdebd0" />
+            </linearGradient>
+            <linearGradient id="grad-gcp" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" style="stop-color:#f4ecf7" />
+                <stop offset="100%" style="stop-color:#e8daef" />
+            </linearGradient>
+        </defs>
+
+        <!-- ==================== SECTION: FRONTEND ==================== -->
+        <text x="20" y="30" class="section-label" fill="#0e6655">Frontend (Browser)</text>
+        <rect x="10" y="40" width="280" height="360" rx="16" fill="url(#grad-frontend)" stroke="#1abc9c" stroke-width="2" opacity="0.5"/>
+
+        <!-- Browser box -->
+        <rect x="30" y="60" width="240" height="50" class="box" fill="#fff" stroke="#1abc9c" stroke-width="1.5"/>
+        <text x="150" y="82" text-anchor="middle" class="label-bold" fill="#0e6655">index.html</text>
+        <text x="150" y="98" text-anchor="middle" class="label-small">DK-Style Encyclopedia UI</text>
+
+        <!-- Voice.js -->
+        <rect x="30" y="130" width="115" height="55" class="box" fill="#fff" stroke="#1abc9c" stroke-width="1.5"/>
+        <text x="87" y="152" text-anchor="middle" class="label-bold" fill="#0e6655">voice.js</text>
+        <text x="87" y="168" text-anchor="middle" class="label-small">Mic + Audio</text>
+
+        <!-- Renderer.js -->
+        <rect x="155" y="130" width="115" height="55" class="box" fill="#fff" stroke="#1abc9c" stroke-width="1.5"/>
+        <text x="212" y="152" text-anchor="middle" class="label-bold" fill="#0e6655">renderer.js</text>
+        <text x="212" y="168" text-anchor="middle" class="label-small">Page Renderer</text>
+
+        <!-- PCM Recorder -->
+        <rect x="30" y="205" width="115" height="45" class="box" fill="#e8f8f5" stroke="#1abc9c" stroke-width="1"/>
+        <text x="87" y="225" text-anchor="middle" class="label-small" style="fill:#0e6655">PCM Recorder</text>
+        <text x="87" y="240" text-anchor="middle" class="label-small">16kHz AudioWorklet</text>
+
+        <!-- PCM Player -->
+        <rect x="30" y="260" width="115" height="45" class="box" fill="#e8f8f5" stroke="#1abc9c" stroke-width="1"/>
+        <text x="87" y="280" text-anchor="middle" class="label-small" style="fill:#0e6655">PCM Player</text>
+        <text x="87" y="295" text-anchor="middle" class="label-small">24kHz AudioWorklet</text>
+
+        <!-- App.js -->
+        <rect x="30" y="325" width="240" height="50" class="box" fill="#fff" stroke="#1abc9c" stroke-width="1.5"/>
+        <text x="150" y="347" text-anchor="middle" class="label-bold" fill="#0e6655">app.js</text>
+        <text x="150" y="363" text-anchor="middle" class="label-small">App Controller + WebSocket Manager</text>
+
+        <!-- ==================== SECTION: BACKEND ==================== -->
+        <text x="330" y="30" class="section-label" fill="#1a5276">Backend (FastAPI on Cloud Run)</text>
+        <rect x="320" y="40" width="370" height="360" rx="16" fill="url(#grad-backend)" stroke="#3498db" stroke-width="2" opacity="0.5"/>
+
+        <!-- Main FastAPI -->
+        <rect x="340" y="60" width="160" height="50" class="box" fill="#fff" stroke="#3498db" stroke-width="1.5"/>
+        <text x="420" y="82" text-anchor="middle" class="label-bold" fill="#1a5276">main.py</text>
+        <text x="420" y="98" text-anchor="middle" class="label-small">FastAPI Server</text>
+
+        <!-- Voice WS -->
+        <rect x="340" y="130" width="160" height="55" class="box" fill="#fff" stroke="#3498db" stroke-width="1.5"/>
+        <text x="420" y="150" text-anchor="middle" class="label-bold" fill="#1a5276">voice_ws.py</text>
+        <text x="420" y="168" text-anchor="middle" class="label-small">WebSocket /ws/voice/</text>
+
+        <!-- Content WS -->
+        <rect x="510" y="130" width="160" height="55" class="box" fill="#fff" stroke="#3498db" stroke-width="1.5"/>
+        <text x="590" y="150" text-anchor="middle" class="label-bold" fill="#1a5276">content_ws.py</text>
+        <text x="590" y="168" text-anchor="middle" class="label-small">WebSocket /ws/content/</text>
+
+        <!-- ADK Agent -->
+        <rect x="340" y="210" width="160" height="65" class="box" fill="#d4e6f1" stroke="#2980b9" stroke-width="2"/>
+        <text x="420" y="232" text-anchor="middle" class="label-bold" fill="#1a5276">ADK Agent</text>
+        <text x="420" y="248" text-anchor="middle" class="label-small">Runner + LiveRequestQueue</text>
+        <text x="420" y="263" text-anchor="middle" class="label-small">RunConfig (BIDI mode)</text>
+
+        <!-- Tool -->
+        <rect x="340" y="295" width="160" height="55" class="box" fill="#fff" stroke="#e67e22" stroke-width="2"/>
+        <text x="420" y="317" text-anchor="middle" class="label-bold" fill="#e67e22">tools.py</text>
+        <text x="420" y="335" text-anchor="middle" class="label-small">generate_encyclopedia_page()</text>
+
+        <!-- Content Store -->
+        <rect x="510" y="210" width="160" height="55" class="box" fill="#fff" stroke="#3498db" stroke-width="1.5"/>
+        <text x="590" y="232" text-anchor="middle" class="label-bold" fill="#1a5276">content_store.py</text>
+        <text x="590" y="248" text-anchor="middle" class="label-small">In-memory Pub/Sub</text>
+
+        <!-- Prompts -->
+        <rect x="510" y="295" width="160" height="55" class="box" fill="#fef9e7" stroke="#e67e22" stroke-width="1"/>
+        <text x="590" y="317" text-anchor="middle" class="label-bold" fill="#e67e22">prompts.py</text>
+        <text x="590" y="335" text-anchor="middle" class="label-small">System + Generation Prompts</text>
+
+        <!-- Health -->
+        <rect x="510" y="60" width="160" height="50" class="box" fill="#fff" stroke="#3498db" stroke-width="1"/>
+        <text x="590" y="82" text-anchor="middle" class="label-bold" fill="#1a5276">health.py</text>
+        <text x="590" y="98" text-anchor="middle" class="label-small">GET /health</text>
+
+        <!-- ==================== SECTION: GEMINI ==================== -->
+        <text x="730" y="30" class="section-label" fill="#b7950b">Gemini Models (Google AI)</text>
+        <rect x="720" y="40" width="290" height="220" rx="16" fill="url(#grad-gemini)" stroke="#f39c12" stroke-width="2" opacity="0.5"/>
+
+        <!-- Live API Model -->
+        <rect x="740" y="60" width="250" height="70" class="box" fill="#fff" stroke="#f39c12" stroke-width="2"/>
+        <text x="865" y="85" text-anchor="middle" class="label-bold" fill="#b7950b">Gemini 2.5 Flash</text>
+        <text x="865" y="102" text-anchor="middle" class="label-small">Live API (Bidi Audio Streaming)</text>
+        <text x="865" y="118" text-anchor="middle" class="label-small">Voice In/Out + Tool Calling</text>
+
+        <!-- Image Gen Model -->
+        <rect x="740" y="150" width="250" height="90" class="box" fill="#fff" stroke="#e67e22" stroke-width="2"/>
+        <text x="865" y="175" text-anchor="middle" class="label-bold" fill="#e67e22">Gemini 2.5 Flash Image</text>
+        <text x="865" y="192" text-anchor="middle" class="label-small">(Nano Banana)</text>
+        <text x="865" y="210" text-anchor="middle" class="label-small">Interleaved TEXT + IMAGE Output</text>
+        <text x="865" y="226" text-anchor="middle" class="label-small">response_modalities: [TEXT, IMAGE]</text>
+
+        <!-- ==================== SECTION: GOOGLE CLOUD ==================== -->
+        <text x="730" y="290" class="section-label" fill="#6c3483">Google Cloud Platform</text>
+        <rect x="720" y="300" width="290" height="100" rx="16" fill="url(#grad-gcp)" stroke="#8e44ad" stroke-width="2" opacity="0.5"/>
+
+        <!-- Cloud Run -->
+        <rect x="740" y="315" width="120" height="65" class="box" fill="#fff" stroke="#8e44ad" stroke-width="1.5"/>
+        <text x="800" y="340" text-anchor="middle" class="label-bold" fill="#6c3483">Cloud Run</text>
+        <text x="800" y="357" text-anchor="middle" class="label-small">Container Hosting</text>
+        <text x="800" y="370" text-anchor="middle" class="label-small">session-affinity</text>
+
+        <!-- Cloud Build -->
+        <rect x="870" y="315" width="120" height="65" class="box" fill="#fff" stroke="#8e44ad" stroke-width="1.5"/>
+        <text x="930" y="340" text-anchor="middle" class="label-bold" fill="#6c3483">Cloud Build</text>
+        <text x="930" y="357" text-anchor="middle" class="label-small">Docker Build</text>
+        <text x="930" y="370" text-anchor="middle" class="label-small">from Dockerfile</text>
+
+        <!-- ==================== ARROWS ==================== -->
+
+        <!-- Frontend to Voice WS (bidirectional audio) -->
+        <path d="M 270 157 L 340 157" class="arrow-bi" stroke="#e74c3c" stroke-width="2.5"/>
+        <text x="305" y="148" text-anchor="middle" class="label-small" style="fill:#e74c3c; font-weight:600">PCM Audio</text>
+
+        <!-- Frontend to Content WS -->
+        <path d="M 270 170 Q 310 210 510 170" class="arrow" stroke="#27ae60" stroke-width="2" stroke-dasharray="6,3"/>
+        <text x="385" y="210" text-anchor="middle" class="label-small" style="fill:#27ae60; font-weight:600">JSON (text+images)</text>
+
+        <!-- Voice WS to ADK Agent -->
+        <path d="M 420 185 L 420 210" class="arrow-bi" stroke="#2980b9"/>
+
+        <!-- ADK Agent to Tool -->
+        <path d="M 420 275 L 420 295" class="arrow-bi" stroke="#e67e22"/>
+        <text x="445" y="288" class="label-small" style="fill:#e67e22">calls</text>
+
+        <!-- ADK Agent to Gemini Live API -->
+        <path d="M 500 230 L 740 95" class="arrow-bi" stroke="#f39c12" stroke-width="2"/>
+        <text x="630" y="150" text-anchor="middle" class="label-small" style="fill:#b7950b; font-weight:600">Live API</text>
+
+        <!-- Tool to Gemini Image -->
+        <path d="M 500 320 L 740 195" class="arrow" stroke="#e67e22" stroke-width="2"/>
+        <text x="635" y="270" text-anchor="middle" class="label-small" style="fill:#e67e22; font-weight:600">GenAI SDK</text>
+
+        <!-- Tool to Content Store -->
+        <path d="M 500 310 L 510 240" class="arrow" stroke="#3498db"/>
+        <text x="520" y="278" class="label-small" style="fill:#3498db">publish</text>
+
+        <!-- Content Store to Content WS -->
+        <path d="M 590 210 L 590 185" class="arrow" stroke="#3498db"/>
+
+        <!-- Tool to Prompts -->
+        <path d="M 500 325 L 510 325" class="arrow" stroke="#e67e22" stroke-dasharray="4,2"/>
+
+        <!-- ==================== FLOW LEGEND ==================== -->
+        <rect x="10" y="430" width="1000" height="180" rx="12" fill="#f8f9fa" stroke="#ddd" stroke-width="1"/>
+        <text x="30" y="458" class="section-label" fill="#2c3e50">Data Flow</text>
+
+        <!-- Step 1 -->
+        <circle cx="40" cy="485" r="14" fill="#e74c3c"/>
+        <text x="40" y="490" text-anchor="middle" fill="white" font-size="12" font-weight="700">1</text>
+        <text x="62" y="490" class="label" style="font-size:12px">User speaks into microphone → PCM audio (16kHz) sent via WebSocket to <tspan font-weight="700">voice_ws.py</tspan></text>
+
+        <!-- Step 2 -->
+        <circle cx="40" cy="515" r="14" fill="#2980b9"/>
+        <text x="40" y="520" text-anchor="middle" fill="white" font-size="12" font-weight="700">2</text>
+        <text x="62" y="520" class="label" style="font-size:12px"><tspan font-weight="700">ADK Agent</tspan> processes voice via Gemini Live API → understands intent → calls <tspan font-weight="700">generate_encyclopedia_page()</tspan> tool</text>
+
+        <!-- Step 3 -->
+        <circle cx="40" cy="545" r="14" fill="#e67e22"/>
+        <text x="40" y="550" text-anchor="middle" fill="white" font-size="12" font-weight="700">3</text>
+        <text x="62" y="550" class="label" style="font-size:12px">Tool calls <tspan font-weight="700">Gemini 2.5 Flash Image</tspan> with interleaved output → receives text + generated images</text>
+
+        <!-- Step 4 -->
+        <circle cx="40" cy="575" r="14" fill="#27ae60"/>
+        <text x="40" y="580" text-anchor="middle" fill="white" font-size="12" font-weight="700">4</text>
+        <text x="62" y="580" class="label" style="font-size:12px">Tool publishes page data to <tspan font-weight="700">content_store</tspan> → pushed via content WebSocket → <tspan font-weight="700">renderer.js</tspan> displays visual page</text>
+
+        <!-- Step 5 -->
+        <circle cx="40" cy="600" r="14" fill="#8e44ad"/>
+        <text x="40" y="605" text-anchor="middle" fill="white" font-size="12" font-weight="700">5</text>
+        <text x="62" y="605" class="label" style="font-size:12px">Agent sends voice summary (24kHz audio) back to browser → user hears response and sees encyclopedia page</text>
+    </svg>
+</div>
+</body>
+</html>
