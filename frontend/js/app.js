@@ -135,9 +135,10 @@ class App {
                 console.error('Generation failed:', result.message);
                 this._hideLoading();
                 this.transcriptText.textContent = `Error: ${result.message}`;
+            } else if (result.type === 'encyclopedia_page') {
+                // Render the page directly from the API response
+                this._onPageReceived(result);
             }
-            // If success, the content will arrive via the content WebSocket
-            // (published by content_store in the backend)
         } catch (err) {
             console.error('API request failed:', err);
             this._hideLoading();
