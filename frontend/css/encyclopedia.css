@@ -215,6 +215,102 @@
     border-radius: 50%;
 }
 
+/* ========================================
+   Click Hint Banner
+   ======================================== */
+
+.click-hint {
+    background: linear-gradient(90deg, var(--accent, #f39c12), #e67e22);
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: slideDown 0.5s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+   Clickable Areas - click anywhere to explore
+   ======================================== */
+
+.clickable-area {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    border-radius: 4px;
+}
+
+.clickable-area:hover {
+    background: rgba(243, 156, 18, 0.08);
+    box-shadow: inset 0 0 0 2px rgba(243, 156, 18, 0.3);
+}
+
+/* Click flash animation */
+.click-flash {
+    animation: clickFlash 0.5s ease;
+}
+
+@keyframes clickFlash {
+    0% { background: rgba(243, 156, 18, 0.3); }
+    100% { background: transparent; }
+}
+
+/* Bold terms get extra visual hint */
+.clickable-term {
+    cursor: pointer;
+    color: var(--primary, #1a5276);
+    border-bottom: 2px dashed var(--accent, #f39c12);
+    padding-bottom: 1px;
+    transition: all 0.2s ease;
+}
+
+.clickable-term:hover {
+    color: var(--accent, #e67e22);
+    border-bottom-style: solid;
+    background: rgba(243, 156, 18, 0.15);
+}
+
+/* Image wrappers are clickable */
+.image-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.image-wrapper::after {
+    content: 'Click to explore';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 2rem 1rem 0.75rem;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.image-wrapper:hover::after {
+    opacity: 1;
+}
+
+.image-wrapper:hover .encyclopedia-image {
+    transform: scale(1.02);
+}
+
 /* DK-style fact box */
 .fact-box {
     background: linear-gradient(135deg, var(--primary, #1a5276), var(--primary-dark, #0e2f44));

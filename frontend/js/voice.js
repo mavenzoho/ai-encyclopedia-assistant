@@ -95,6 +95,10 @@ export class VoiceManager {
             case 'tool_result':
                 this.onToolEvent?.(event);
                 break;
+            case 'error':
+                console.error('Voice error:', event.data);
+                this.onStatusChange?.(`Voice error: ${event.data}`);
+                break;
         }
     }
 

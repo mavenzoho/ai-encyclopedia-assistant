@@ -1,8 +1,8 @@
 /**
  * AI Encyclopedia - Main Application Controller
  *
- * Wires together the VoiceManager, content WebSocket, and EncyclopediaRenderer
- * to create the full interactive experience.
+ * Tabbed encyclopedia explorer: click anywhere on content to open a new
+ * detailed page in a new tab. Navigate between explored topics with tabs.
  */
 
 import { VoiceManager } from './voice.js';
@@ -11,12 +11,11 @@ import { EncyclopediaRenderer } from './renderer.js';
 class App {
     constructor() {
         this.sessionId = crypto.randomUUID();
-        this.topicHistory = [];
+        this.pageCache = {};  // topic -> pageData
+        this.tabs = [];       // [{ id, topic, pageData }]
+        this.activeTabId = null;
 
         // Initialize components
-        this.renderer = new EncyclopediaRenderer(
-            document.getElementById('page-container')
-        );
         this.voiceManager = new VoiceManager(this.sessionId);
         this.contentWs = null;
 
@@ -28,8 +27,13 @@ class App {
         this.welcomeScreen = document.getElementById('welcome-screen');
         this.loadingOverlay = document.getElementById('loading-overlay');
         this.pageContainer = document.getElementById('page-container');
-        this.topicNav = document.getElementById('topic-history');
-        this.historyChips = document.getElementById('history-chips');
+        this.tabBar = document.getElementById('tab-bar');
+        this.tabList = document.getElementById('tab-list');
+        this.searchInput = document.getElementById('search-input');
+        this.searchBtn = document.getElementById('search-btn');
+
+        // Create a renderer (it will render into pageContainer)
+        this.renderer = new EncyclopediaRenderer(this.pageContainer);
 
         this._initContentWebSocket();
         this._initVoiceCallbacks();
@@ -57,7 +61,6 @@ class App {
         };
 
         this.contentWs.onclose = () => {
-            // Auto-reconnect
             setTimeout(() => this._initContentWebSocket(), 3000);
         };
     }
@@ -66,24 +69,19 @@ class App {
      * Set up voice manager callbacks.
      */
     _initVoiceCallbacks() {
-        // User's speech transcription
         this.voiceManager.onTranscription = (text, partial) => {
             this.transcriptText.textContent = text;
             this.transcriptBar.classList.add('active');
-
-            // Show loading when user finishes a substantial utterance
             if (!partial && text && text.length > 5) {
                 this._showLoading();
             }
         };
 
-        // Agent's speech transcription (subtitles)
         this.voiceManager.onOutputTranscription = (text) => {
             this.transcriptText.textContent = text;
             this.transcriptBar.classList.add('active');
         };
 
-        // Connection status
         this.voiceManager.onStatusChange = (status) => {
             this.statusText.textContent = status;
         };
@@ -95,24 +93,69 @@ class App {
     _initUI() {
         // Microphone toggle
         this.micBtn.addEventListener('click', async () => {
-            await this.voiceManager.toggle();
-            this.micBtn.classList.toggle('listening', this.voiceManager.isListening);
+            try {
+                await this.voiceManager.toggle();
+                this.micBtn.classList.toggle('listening', this.voiceManager.isListening);
+            } catch (err) {
+                console.error('Mic toggle failed:', err);
+                this.statusText.textContent = 'Mic error - try typing instead';
+            }
         });
 
         // Suggestion chips on welcome screen
         document.querySelectorAll('.chip').forEach((chip) => {
             chip.addEventListener('click', () => {
                 const topic = chip.dataset.topic;
-                this._requestTopicViaAPI(topic);
+                this._openTopic(topic);
             });
         });
+
+        // Search input
+        if (this.searchInput) {
+            this.searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this._handleSearch();
+                }
+            });
+        }
+        if (this.searchBtn) {
+            this.searchBtn.addEventListener('click', () => {
+                this._handleSearch();
+            });
+        }
+
+        // Wire up renderer click-to-explore: clicking anything opens a new tab
+        this.renderer.onExploreClick = (topic) => {
+            this._openTopic(topic);
+        };
     }
 
     /**
-     * Request an encyclopedia page via the HTTP API (reliable, no Live API needed).
-     * Used for chips and typed input.
+     * Handle search input submission.
      */
-    async _requestTopicViaAPI(topic, focus = 'general overview') {
+    _handleSearch() {
+        const query = this.searchInput.value.trim();
+        if (query.length > 0) {
+            this._openTopic(query);
+            this.searchInput.value = '';
+            this.searchInput.blur();
+        }
+    }
+
+    /**
+     * Open a topic - creates a new tab and generates the page.
+     */
+    async _openTopic(topic, focus = 'general overview') {
+        const cacheKey = `${topic.toLowerCase()}|${focus.toLowerCase()}`;
+
+        // If cached, open it in a new tab instantly
+        if (this.pageCache[cacheKey]) {
+            this._createTab(topic, this.pageCache[cacheKey]);
+            return;
+        }
+
+        // Show loading and create a pending tab
         this._showLoading();
         this.welcomeScreen.classList.add('hidden');
         this.transcriptText.textContent = `Exploring: ${topic}`;
@@ -136,7 +179,7 @@ class App {
                 this._hideLoading();
                 this.transcriptText.textContent = `Error: ${result.message}`;
             } else if (result.type === 'encyclopedia_page') {
-                // Render the page directly from the API response
+                this.pageCache[cacheKey] = result;
                 this._onPageReceived(result);
             }
         } catch (err) {
@@ -147,52 +190,122 @@ class App {
     }
 
     /**
-     * Request via voice WebSocket (used when mic is active).
-     */
-    _requestTopicViaVoice(topic) {
-        this.voiceManager.sendText(`Tell me about ${topic}`);
-        this._showLoading();
-        this.transcriptText.textContent = `Tell me about ${topic}`;
-        this.transcriptBar.classList.add('active');
-    }
-
-    /**
-     * Handle a received encyclopedia page.
+     * Handle a received encyclopedia page - creates a new tab.
      */
     _onPageReceived(pageData) {
         this._hideLoading();
         this.welcomeScreen.classList.add('hidden');
+        this._createTab(pageData.topic, pageData);
 
-        // Render the page
-        this.renderer.renderPage(pageData);
-
-        // Add to topic history
-        this._addToHistory(pageData.topic);
-
-        // Clear transcript after a moment
-        setTimeout(() => {
-            this.transcriptBar.classList.remove('active');
-        }, 2000);
+        this.transcriptText.textContent = pageData.topic;
+        this.transcriptBar.classList.add('active');
+        setTimeout(() => this.transcriptBar.classList.remove('active'), 2000);
     }
 
     /**
-     * Add a topic to the navigation history.
+     * Create a new tab for a topic.
      */
-    _addToHistory(topic) {
-        // Avoid duplicates
-        if (this.topicHistory.includes(topic)) return;
+    _createTab(topic, pageData) {
+        const tabId = `tab-${Date.now()}`;
 
-        this.topicHistory.push(topic);
-        this.topicNav.classList.remove('hidden');
+        // Check if topic already has an open tab
+        const existingTab = this.tabs.find(
+            (t) => t.topic.toLowerCase() === topic.toLowerCase()
+        );
+        if (existingTab) {
+            this._switchToTab(existingTab.id);
+            return;
+        }
 
-        const chip = document.createElement('button');
-        chip.className = 'history-chip';
-        chip.textContent = topic;
-        chip.addEventListener('click', () => {
-            this._requestTopicViaAPI(topic);
+        // Add tab data
+        this.tabs.push({ id: tabId, topic, pageData });
+
+        // Show the tab bar
+        this.tabBar.classList.remove('hidden');
+        document.body.classList.add('has-tabs');
+
+        // Create tab button
+        const tabBtn = document.createElement('button');
+        tabBtn.className = 'tab-btn';
+        tabBtn.dataset.tabId = tabId;
+        tabBtn.innerHTML = `
+            <span class="tab-label">${this._escapeHtml(topic)}</span>
+            <span class="tab-close" title="Close tab">&times;</span>
+        `;
+
+        // Click tab to switch
+        tabBtn.querySelector('.tab-label').addEventListener('click', () => {
+            this._switchToTab(tabId);
         });
 
-        this.historyChips.appendChild(chip);
+        // Close tab
+        tabBtn.querySelector('.tab-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._closeTab(tabId);
+        });
+
+        this.tabList.appendChild(tabBtn);
+
+        // Switch to the new tab
+        this._switchToTab(tabId);
+
+        // Scroll tab into view
+        tabBtn.scrollIntoView({ behavior: 'smooth', inline: 'end' });
+    }
+
+    /**
+     * Switch to a specific tab.
+     */
+    _switchToTab(tabId) {
+        const tab = this.tabs.find((t) => t.id === tabId);
+        if (!tab) return;
+
+        this.activeTabId = tabId;
+
+        // Update tab button styles
+        this.tabList.querySelectorAll('.tab-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.tabId === tabId);
+        });
+
+        // Render the page
+        this.renderer.renderPage(tab.pageData);
+
+        // Update transcript
+        this.transcriptText.textContent = tab.topic;
+        this.transcriptBar.classList.add('active');
+        setTimeout(() => this.transcriptBar.classList.remove('active'), 1500);
+    }
+
+    /**
+     * Close a tab.
+     */
+    _closeTab(tabId) {
+        const index = this.tabs.findIndex((t) => t.id === tabId);
+        if (index === -1) return;
+
+        // Remove tab data
+        this.tabs.splice(index, 1);
+
+        // Remove tab button
+        const tabBtn = this.tabList.querySelector(`[data-tab-id="${tabId}"]`);
+        if (tabBtn) tabBtn.remove();
+
+        // If we closed the active tab, switch to another
+        if (this.activeTabId === tabId) {
+            if (this.tabs.length > 0) {
+                // Switch to the previous or last tab
+                const newIndex = Math.min(index, this.tabs.length - 1);
+                this._switchToTab(this.tabs[newIndex].id);
+            } else {
+                // No tabs left - show welcome screen
+                this.activeTabId = null;
+                this.pageContainer.classList.add('hidden');
+                this.pageContainer.innerHTML = '';
+                this.welcomeScreen.classList.remove('hidden');
+                this.tabBar.classList.add('hidden');
+                document.body.classList.remove('has-tabs');
+            }
+        }
     }
 
     /**
@@ -207,6 +320,15 @@ class App {
      */
     _hideLoading() {
         this.loadingOverlay.classList.add('hidden');
+    }
+
+    /**
+     * Escape HTML for safe rendering.
+     */
+    _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
     }
 }
 

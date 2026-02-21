@@ -2,12 +2,16 @@
  * Encyclopedia Page Renderer
  *
  * Transforms JSON encyclopedia data (sections of text + base64 images)
- * into a rich, DK Books-inspired visual layout.
+ * into a rich, visual layout. The entire page is click-to-explore:
+ * click any text or image to generate a detailed page about that subject.
  */
 
 export class EncyclopediaRenderer {
     constructor(container) {
         this.container = container;
+
+        // Callback when user clicks content to explore
+        this.onExploreClick = null;
 
         // Color themes for different topic categories
         this.topicThemes = {
@@ -63,12 +67,40 @@ export class EncyclopediaRenderer {
         accentBar.className = 'page-accent-bar';
         this.container.appendChild(accentBar);
 
+        // Click hint banner
+        const clickHint = document.createElement('div');
+        clickHint.className = 'click-hint';
+        clickHint.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M2 2l6.5 6.5"/>
+            </svg>
+            Click any text or image to explore it in detail
+        `;
+        this.container.appendChild(clickHint);
+
         // Render each section with alternating layouts
+        let relatedTopics = [];
         if (pageData.sections && pageData.sections.length > 0) {
             pageData.sections.forEach((section, index) => {
+                // Extract related topics from the last section
+                const extracted = this._extractRelatedTopics(section.text);
+                if (extracted.topics.length > 0) {
+                    relatedTopics = extracted.topics;
+                    if (extracted.remainingText.trim().length < 20) {
+                        return;
+                    }
+                    section = { ...section, text: extracted.remainingText };
+                }
+
                 const sectionEl = this._renderSection(section, index);
                 this.container.appendChild(sectionEl);
             });
+        }
+
+        // Render related topics footer
+        if (relatedTopics.length > 0) {
+            const relatedEl = this._renderRelatedTopics(relatedTopics);
+            this.container.appendChild(relatedEl);
         }
 
         // Scroll to top of new page
@@ -96,15 +128,16 @@ export class EncyclopediaRenderer {
         el.className = `encyclopedia-section ${layout}`;
         el.style.animationDelay = `${0.1 + index * 0.1}s`;
 
-        // Text content
+        // Text content - entire section is clickable
         if (hasText) {
             const textEl = document.createElement('div');
             textEl.className = 'section-text';
             textEl.innerHTML = this._renderMarkdown(section.text);
+            this._makeClickable(textEl);
             el.appendChild(textEl);
         }
 
-        // Images
+        // Images - each image is clickable
         if (hasImages) {
             const imageContainer = document.createElement('div');
             imageContainer.className = section.images.length > 1
@@ -112,17 +145,210 @@ export class EncyclopediaRenderer {
                 : 'image-container image-single';
 
             section.images.forEach((img) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'image-wrapper clickable-area';
+
                 const imgEl = document.createElement('img');
                 imgEl.src = `data:${img.mime_type};base64,${img.data}`;
                 imgEl.className = 'encyclopedia-image';
                 imgEl.loading = 'lazy';
                 imgEl.alt = `Illustration for encyclopedia content`;
-                imageContainer.appendChild(imgEl);
+
+                // Clicking an image uses the nearby section heading/text as context
+                wrapper.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Find the nearest heading or use the section text
+                    const sectionParent = wrapper.closest('.encyclopedia-section');
+                    const heading = sectionParent?.querySelector('h1, h2, h3');
+                    const topic = heading
+                        ? heading.textContent.trim()
+                        : this._extractTopicFromText(section.text);
+                    if (topic && this.onExploreClick) {
+                        this._showRipple(wrapper, e);
+                        this.onExploreClick(topic);
+                    }
+                });
+
+                wrapper.appendChild(imgEl);
+                imageContainer.appendChild(wrapper);
             });
 
             el.appendChild(imageContainer);
         }
 
+        return el;
+    }
+
+    /**
+     * Make text elements clickable for exploration.
+     * Clicking a heading, paragraph, bold term, or list item triggers exploration.
+     */
+    _makeClickable(textEl) {
+        // Headings are clickable
+        textEl.querySelectorAll('h1, h2, h3').forEach((heading) => {
+            heading.classList.add('clickable-area');
+            heading.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const topic = heading.textContent.trim();
+                if (topic && this.onExploreClick) {
+                    this._showRipple(heading, e);
+                    this.onExploreClick(topic);
+                }
+            });
+        });
+
+        // Bold terms are clickable
+        textEl.querySelectorAll('strong').forEach((strong) => {
+            const term = strong.textContent.trim();
+            if (term.length > 2 && !/^\d+$/.test(term)) {
+                strong.classList.add('clickable-area', 'clickable-term');
+                strong.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.onExploreClick) {
+                        this._showRipple(strong, e);
+                        this.onExploreClick(term);
+                    }
+                });
+            }
+        });
+
+        // Paragraphs are clickable (use selection or full paragraph topic)
+        textEl.querySelectorAll('p').forEach((p) => {
+            p.classList.add('clickable-area');
+            p.addEventListener('click', (e) => {
+                // Don't trigger if user clicked a bold term or heading (already handled)
+                if (e.target.closest('strong, h1, h2, h3')) return;
+                e.stopPropagation();
+
+                // Check if user selected text
+                const selection = window.getSelection();
+                const selectedText = selection?.toString().trim();
+                if (selectedText && selectedText.length > 2) {
+                    if (this.onExploreClick) {
+                        this._showRipple(p, e);
+                        this.onExploreClick(selectedText);
+                    }
+                    return;
+                }
+
+                // Otherwise use the paragraph's topic (first sentence or closest heading)
+                const topic = this._extractTopicFromElement(p);
+                if (topic && this.onExploreClick) {
+                    this._showRipple(p, e);
+                    this.onExploreClick(topic);
+                }
+            });
+        });
+
+        // List items are clickable
+        textEl.querySelectorAll('li').forEach((li) => {
+            li.classList.add('clickable-area');
+            li.addEventListener('click', (e) => {
+                if (e.target.closest('strong')) return;
+                e.stopPropagation();
+                // Extract meaningful topic from list item
+                const boldInLi = li.querySelector('strong');
+                const topic = boldInLi
+                    ? boldInLi.textContent.trim()
+                    : this._extractTopicFromText(li.textContent);
+                if (topic && this.onExploreClick) {
+                    this._showRipple(li, e);
+                    this.onExploreClick(topic);
+                }
+            });
+        });
+    }
+
+    /**
+     * Extract a topic from a paragraph element by finding the nearest heading.
+     */
+    _extractTopicFromElement(el) {
+        // Walk backwards to find a heading
+        let prev = el.previousElementSibling;
+        while (prev) {
+            if (/^H[1-3]$/.test(prev.tagName)) {
+                return prev.textContent.trim();
+            }
+            prev = prev.previousElementSibling;
+        }
+        // Fallback: use first sentence of the paragraph
+        return this._extractTopicFromText(el.textContent);
+    }
+
+    /**
+     * Extract a meaningful topic string from raw text.
+     */
+    _extractTopicFromText(text) {
+        if (!text) return '';
+        // Get first meaningful sentence
+        const cleaned = text.replace(/^#+\s*/, '').replace(/\*+/g, '').trim();
+        const firstSentence = cleaned.split(/[.!?]/)[0].trim();
+        // Limit length
+        if (firstSentence.length > 60) {
+            return firstSentence.substring(0, 60).trim();
+        }
+        return firstSentence;
+    }
+
+    /**
+     * Show a ripple/highlight effect on clicked element.
+     */
+    _showRipple(el, event) {
+        el.classList.add('click-flash');
+        setTimeout(() => el.classList.remove('click-flash'), 500);
+    }
+
+    /**
+     * Extract related topics from text content.
+     */
+    _extractRelatedTopics(text) {
+        if (!text) return { topics: [], remainingText: text };
+
+        const relatedMatch = text.match(/##\s*RELATED\s*TOPICS[:\s]*([\s\S]*?)$/i);
+        if (!relatedMatch) return { topics: [], remainingText: text };
+
+        const relatedSection = relatedMatch[1];
+        const topics = [];
+
+        const lines = relatedSection.split('\n');
+        for (const line of lines) {
+            const match = line.match(/^[-*]\s+\**([^*\n]+)\**\s*$/);
+            if (match) {
+                const topic = match[1].trim().replace(/\*+/g, '');
+                if (topic.length > 1) {
+                    topics.push(topic);
+                }
+            }
+        }
+
+        const remainingText = text.replace(/##\s*RELATED\s*TOPICS[:\s]*[\s\S]*$/i, '').trim();
+        return { topics, remainingText };
+    }
+
+    /**
+     * Render the related topics footer with clickable chips.
+     */
+    _renderRelatedTopics(topics) {
+        const el = document.createElement('div');
+        el.className = 'related-topics';
+        el.innerHTML = `<h3>Explore Related Topics</h3>`;
+
+        const chipsContainer = document.createElement('div');
+        chipsContainer.className = 'related-chips';
+
+        topics.forEach((topic) => {
+            const chip = document.createElement('button');
+            chip.className = 'related-chip';
+            chip.textContent = topic;
+            chip.addEventListener('click', () => {
+                if (this.onExploreClick) {
+                    this.onExploreClick(topic);
+                }
+            });
+            chipsContainer.appendChild(chip);
+        });
+
+        el.appendChild(chipsContainer);
         return el;
     }
 

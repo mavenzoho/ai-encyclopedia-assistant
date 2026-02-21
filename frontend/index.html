@@ -37,6 +37,11 @@
         </div>
     </header>
 
+    <!-- Tab Bar for explored topics -->
+    <nav id="tab-bar" class="tab-bar hidden">
+        <div class="tab-list" id="tab-list"></div>
+    </nav>
+
     <!-- Main Content Area -->
     <main id="encyclopedia-viewport">
         <!-- Welcome Screen -->
@@ -45,7 +50,21 @@
                 <div class="welcome-icon">&#127758;</div>
                 <h2>Explore the World of Knowledge</h2>
                 <p>Ask me about anything! I'll create a rich, visual encyclopedia page just for you.</p>
-                <p class="welcome-hint">Try speaking or click a topic below:</p>
+
+                <!-- Search Input -->
+                <div class="search-bar">
+                    <input type="text" id="search-input" class="search-input"
+                           placeholder="Type any topic to explore..."
+                           autocomplete="off" />
+                    <button id="search-btn" class="search-btn" aria-label="Search">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <p class="welcome-hint">Or click a topic to get started:</p>
                 <div class="suggestion-chips">
                     <button class="chip" data-topic="solar system">
                         <span class="chip-icon">&#9728;&#65039;</span>
@@ -91,12 +110,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Navigation History -->
-    <nav id="topic-history" class="topic-nav hidden">
-        <div class="nav-label">Recent Topics:</div>
-        <div id="history-chips" class="history-chips"></div>
-    </nav>
 
     <!-- Scripts -->
     <script src="/static/js/voice.js" type="module"></script>

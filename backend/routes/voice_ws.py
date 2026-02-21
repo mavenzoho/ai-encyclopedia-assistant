@@ -39,14 +39,23 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
     await websocket.accept()
     user_id = "default_user"
 
-    # Create or get session
-    session = await session_service.get_session(
-        app_name=APP_NAME, user_id=user_id, session_id=session_id
-    )
-    if not session:
-        session = await session_service.create_session(
+    try:
+        # Create or get session
+        session = await session_service.get_session(
             app_name=APP_NAME, user_id=user_id, session_id=session_id
         )
+        if not session:
+            session = await session_service.create_session(
+                app_name=APP_NAME, user_id=user_id, session_id=session_id
+            )
+    except Exception as e:
+        logger.error(f"Session creation error: {e}", exc_info=True)
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "data": f"Session error: {str(e)}",
+        }))
+        await websocket.close()
+        return
 
     # Configure for bidirectional audio streaming
     run_config = RunConfig(

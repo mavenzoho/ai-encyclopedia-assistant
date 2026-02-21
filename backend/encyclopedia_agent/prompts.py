@@ -55,6 +55,15 @@ Create content with interleaved text and images following this structure:
 
 8. **DID YOU KNOW?**: Share 3 fascinating, surprising facts that would make readers say "wow!".
 
+9. **RELATED TOPICS**: List exactly 6 related topics the reader might want to explore next.
+   Format each as a bullet point with JUST the topic name (no descriptions):
+   - Topic Name One
+   - Topic Name Two
+   - Topic Name Three
+   - Topic Name Four
+   - Topic Name Five
+   - Topic Name Six
+
 IMPORTANT GUIDELINES:
 - Generate images inline with the text - each image should be educational and informative
 - Use clean, professional, magazine-quality illustration style for all images
@@ -63,4 +72,5 @@ IMPORTANT GUIDELINES:
 - Write in an engaging, accessible style suitable for curious learners of all ages
 - Include specific numbers, dates, measurements, and comparisons
 - Use bold for key terms and italic for scientific names
+- ALWAYS end with the RELATED TOPICS section - this is critical for navigation
 """
