@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Encyclopedia</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/encyclopedia.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header id="topbar">
+        <div class="topbar-left">
+            <div class="logo">
+                <span class="logo-icon">&#128214;</span>
+                <h1>AI Encyclopedia</h1>
+            </div>
+        </div>
+        <div class="topbar-center">
+            <div id="transcript-bar" class="transcript">
+                <span id="transcript-text"></span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div id="voice-controls">
+                <button id="mic-btn" class="mic-button" aria-label="Toggle microphone">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
+                <span id="status-text">Click mic to start</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="encyclopedia-viewport">
+        <!-- Welcome Screen -->
+        <div id="welcome-screen" class="welcome">
+            <div class="welcome-content">
+                <div class="welcome-icon">&#127758;</div>
+                <h2>Explore the World of Knowledge</h2>
+                <p>Ask me about anything! I'll create a rich, visual encyclopedia page just for you.</p>
+                <p class="welcome-hint">Try speaking or click a topic below:</p>
+                <div class="suggestion-chips">
+                    <button class="chip" data-topic="solar system">
+                        <span class="chip-icon">&#9728;&#65039;</span>
+                        Solar System
+                    </button>
+                    <button class="chip" data-topic="dinosaurs">
+                        <span class="chip-icon">&#129430;</span>
+                        Dinosaurs
+                    </button>
+                    <button class="chip" data-topic="human body">
+                        <span class="chip-icon">&#129728;</span>
+                        Human Body
+                    </button>
+                    <button class="chip" data-topic="volcanoes">
+                        <span class="chip-icon">&#127755;</span>
+                        Volcanoes
+                    </button>
+                    <button class="chip" data-topic="ancient egypt">
+                        <span class="chip-icon">&#127963;&#65039;</span>
+                        Ancient Egypt
+                    </button>
+                    <button class="chip" data-topic="deep ocean">
+                        <span class="chip-icon">&#128011;</span>
+                        Deep Ocean
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Encyclopedia Page Container -->
+        <div id="page-container" class="encyclopedia-page hidden"></div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading hidden">
+            <div class="loading-content">
+                <div class="spinner">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                </div>
+                <p class="loading-text">Creating your encyclopedia page...</p>
+                <p class="loading-subtext">Generating illustrations and content</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Navigation History -->
+    <nav id="topic-history" class="topic-nav hidden">
+        <div class="nav-label">Recent Topics:</div>
+        <div id="history-chips" class="history-chips"></div>
+    </nav>
+
+    <!-- Scripts -->
+    <script src="/static/js/voice.js" type="module"></script>
+    <script src="/static/js/renderer.js" type="module"></script>
+    <script src="/static/js/app.js" type="module"></script>
+</body>
+</html>
