@@ -103,15 +103,52 @@ class App {
         document.querySelectorAll('.chip').forEach((chip) => {
             chip.addEventListener('click', () => {
                 const topic = chip.dataset.topic;
-                this._requestTopic(topic);
+                this._requestTopicViaAPI(topic);
             });
         });
     }
 
     /**
-     * Request an encyclopedia page for a topic (via text input).
+     * Request an encyclopedia page via the HTTP API (reliable, no Live API needed).
+     * Used for chips and typed input.
      */
-    _requestTopic(topic) {
+    async _requestTopicViaAPI(topic, focus = 'general overview') {
+        this._showLoading();
+        this.welcomeScreen.classList.add('hidden');
+        this.transcriptText.textContent = `Exploring: ${topic}`;
+        this.transcriptBar.classList.add('active');
+
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic: topic,
+                    focus: focus,
+                    session_id: this.sessionId,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'error') {
+                console.error('Generation failed:', result.message);
+                this._hideLoading();
+                this.transcriptText.textContent = `Error: ${result.message}`;
+            }
+            // If success, the content will arrive via the content WebSocket
+            // (published by content_store in the backend)
+        } catch (err) {
+            console.error('API request failed:', err);
+            this._hideLoading();
+            this.transcriptText.textContent = 'Connection error. Please try again.';
+        }
+    }
+
+    /**
+     * Request via voice WebSocket (used when mic is active).
+     */
+    _requestTopicViaVoice(topic) {
         this.voiceManager.sendText(`Tell me about ${topic}`);
         this._showLoading();
         this.transcriptText.textContent = `Tell me about ${topic}`;
@@ -151,7 +188,7 @@ class App {
         chip.className = 'history-chip';
         chip.textContent = topic;
         chip.addEventListener('click', () => {
-            this._requestTopic(topic);
+            this._requestTopicViaAPI(topic);
         });
 
         this.historyChips.appendChild(chip);
