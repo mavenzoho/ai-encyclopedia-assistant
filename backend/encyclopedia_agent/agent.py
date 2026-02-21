@@ -8,8 +8,8 @@ root_agent = Agent(
     name="encyclopedia_assistant",
     model=LIVE_API_MODEL,
     description=(
-        "An AI encyclopedia assistant that creates DK Books-style visual "
-        "encyclopedia pages with rich illustrations from voice commands."
+        "An AI encyclopedia assistant that creates rich, illustrated visual "
+        "encyclopedia pages with diagrams and infographics from voice commands."
     ),
     instruction=SYSTEM_INSTRUCTION,
     tools=[generate_encyclopedia_page],
