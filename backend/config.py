@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Models
-LIVE_API_MODEL = os.getenv("LIVE_API_MODEL", "gemini-2.5-flash")
+LIVE_API_MODEL = os.getenv("LIVE_API_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025")
 IMAGE_GEN_MODEL = os.getenv("IMAGE_GEN_MODEL", "gemini-2.5-flash-image")
 
 # Google Cloud
