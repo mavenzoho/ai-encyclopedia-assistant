@@ -9,6 +9,7 @@ from backend.routes.health import router as health_router
 from backend.routes.voice_ws import router as voice_router
 from backend.routes.content_ws import router as content_router
 from backend.routes.generate import router as generate_router
+from backend.routes.generate_video import router as video_router
 
 app = FastAPI(title="AI Encyclopedia Assistant")
 
@@ -25,6 +26,7 @@ app.include_router(health_router)
 app.include_router(voice_router)
 app.include_router(content_router)
 app.include_router(generate_router)
+app.include_router(video_router)
 
 # Serve frontend static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")

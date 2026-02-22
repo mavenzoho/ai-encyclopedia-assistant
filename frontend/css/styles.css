@@ -491,6 +491,87 @@ body.has-tabs .loading {
 }
 
 /* ========================================
+   Tab Loading States
+   ======================================== */
+
+.tab-loading {
+    opacity: 0.7;
+}
+
+.tab-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+.tab-ready {
+    animation: tabReadyFlash 1.5s ease;
+}
+
+@keyframes tabReadyFlash {
+    0% { background: rgba(39, 174, 96, 0.4); }
+    100% { background: rgba(255,255,255,0.05); }
+}
+
+.tab-flash {
+    animation: tabFlash 0.6s ease;
+}
+
+@keyframes tabFlash {
+    0%, 100% { background: rgba(255,255,255,0.05); }
+    50% { background: rgba(243, 156, 18, 0.3); }
+}
+
+.tab-error {
+    border-bottom-color: #e74c3c !important;
+    opacity: 0.6;
+}
+
+/* ========================================
+   Video Loading Overlay (on image)
+   ======================================== */
+
+.video-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    z-index: 10;
+    color: white;
+    font-family: var(--font-heading);
+}
+
+.video-loading-overlay .spinner {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 1rem;
+}
+
+.video-loading-overlay p {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0.25rem 0;
+}
+
+.video-hint {
+    font-size: 0.75rem !important;
+    opacity: 0.7;
+    font-weight: 400 !important;
+}
+
+/* ========================================
    Utility
    ======================================== */
 

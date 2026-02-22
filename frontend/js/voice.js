@@ -12,6 +12,9 @@ export class VoiceManager {
         this.ws = null;
         this.isListening = false;
         this.isConnected = false;
+        this.isVoiceReady = false;
+        this._reconnectAttempts = 0;
+        this._maxReconnectAttempts = 5;
 
         // Audio capture
         this.captureContext = null;
@@ -35,15 +38,27 @@ export class VoiceManager {
      * Connect to the voice WebSocket.
      */
     _connect() {
+        if (this._reconnectAttempts >= this._maxReconnectAttempts) {
+            this.onStatusChange?.('Voice unavailable - use text input');
+            return;
+        }
+
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const url = `${protocol}//${location.host}/ws/voice/${this.sessionId}`;
 
-        this.ws = new WebSocket(url);
-        this.ws.binaryType = 'arraybuffer';
+        try {
+            this.ws = new WebSocket(url);
+            this.ws.binaryType = 'arraybuffer';
+        } catch (err) {
+            console.error('Failed to create voice WebSocket:', err);
+            this.onStatusChange?.('Voice connection failed - use text input');
+            return;
+        }
 
         this.ws.onopen = () => {
             this.isConnected = true;
-            this.onStatusChange?.('Connected - click mic to speak');
+            this._reconnectAttempts = 0;
+            this.onStatusChange?.('Connecting voice...');
         };
 
         this.ws.onmessage = (event) => {
@@ -61,15 +76,21 @@ export class VoiceManager {
             }
         };
 
-        this.ws.onclose = () => {
+        this.ws.onclose = (event) => {
             this.isConnected = false;
-            this.onStatusChange?.('Disconnected - reconnecting...');
-            // Auto-reconnect after 3 seconds
-            setTimeout(() => this._connect(), 3000);
+            this.isVoiceReady = false;
+            if (this.isListening) {
+                this.stopListening();
+            }
+            this._reconnectAttempts++;
+            const delay = Math.min(3000 * this._reconnectAttempts, 15000);
+            this.onStatusChange?.(`Disconnected - reconnecting in ${Math.round(delay / 1000)}s...`);
+            setTimeout(() => this._connect(), delay);
         };
 
         this.ws.onerror = (err) => {
             console.error('Voice WebSocket error:', err);
+            this.onStatusChange?.('Voice connection error');
         };
     }
 
@@ -78,6 +99,10 @@ export class VoiceManager {
      */
     _handleEvent(event) {
         switch (event.type) {
+            case 'voice_ready':
+                this.isVoiceReady = true;
+                this.onStatusChange?.('Ready - click mic to speak');
+                break;
             case 'input_transcription':
                 this.onTranscription?.(event.data, event.partial);
                 break;
@@ -117,6 +142,14 @@ export class VoiceManager {
      * Start capturing microphone audio and streaming to the agent.
      */
     async startListening() {
+        // Check WebSocket connection first
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            this.onStatusChange?.('Not connected - trying to reconnect...');
+            this._reconnectAttempts = 0;
+            this._connect();
+            return;
+        }
+
         try {
             // Request microphone access
             this.captureStream = await navigator.mediaDevices.getUserMedia({
@@ -150,14 +183,19 @@ export class VoiceManager {
             // Connect: mic -> recorder worklet
             source.connect(this.recorderNode);
             // Connect to destination to keep the audio pipeline alive
-            // (worklet won't process if not connected to output)
             this.recorderNode.connect(this.captureContext.destination);
 
             this.isListening = true;
             this.onStatusChange?.('Listening...');
         } catch (err) {
             console.error('Failed to start microphone:', err);
-            this.onStatusChange?.('Microphone access denied');
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                this.onStatusChange?.('Microphone access denied');
+            } else if (err.name === 'NotFoundError') {
+                this.onStatusChange?.('No microphone found');
+            } else {
+                this.onStatusChange?.(`Mic error: ${err.message}`);
+            }
         }
     }
 
@@ -233,6 +271,7 @@ export class VoiceManager {
      */
     destroy() {
         this.stopListening();
+        this._maxReconnectAttempts = 0; // Prevent reconnection
         if (this.playbackContext) {
             this.playbackContext.close().catch(() => {});
         }

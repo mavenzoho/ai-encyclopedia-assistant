@@ -13,6 +13,9 @@ export class EncyclopediaRenderer {
         // Callback when user clicks content to explore
         this.onExploreClick = null;
 
+        // Callback when user requests video from an image
+        this.onVideoRequest = null;
+
         // Color themes for different topic categories
         this.topicThemes = {
             space:   { primary: '#1b2631', primaryDark: '#0d1317', accent: '#5dade2', bg: '#eaf2f8' },
@@ -156,8 +159,9 @@ export class EncyclopediaRenderer {
 
                 // Clicking an image uses the nearby section heading/text as context
                 wrapper.addEventListener('click', (e) => {
+                    // Don't trigger explore if user clicked the video button
+                    if (e.target.closest('.video-btn')) return;
                     e.stopPropagation();
-                    // Find the nearest heading or use the section text
                     const sectionParent = wrapper.closest('.encyclopedia-section');
                     const heading = sectionParent?.querySelector('h1, h2, h3');
                     const topic = heading
@@ -170,6 +174,30 @@ export class EncyclopediaRenderer {
                 });
 
                 wrapper.appendChild(imgEl);
+
+                // Video generation button overlay
+                const videoBtn = document.createElement('button');
+                videoBtn.className = 'video-btn';
+                videoBtn.title = 'Create video from this image';
+                videoBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Create Video</span>
+                `;
+                videoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.onVideoRequest) {
+                        const sectionParent = wrapper.closest('.encyclopedia-section');
+                        const heading = sectionParent?.querySelector('h1, h2, h3');
+                        const topic = heading
+                            ? heading.textContent.trim()
+                            : this._extractTopicFromText(section.text);
+                        this.onVideoRequest(img.data, img.mime_type, topic || 'this image', wrapper);
+                    }
+                });
+                wrapper.appendChild(videoBtn);
+
                 imageContainer.appendChild(wrapper);
             });
 

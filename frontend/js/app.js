@@ -1,18 +1,31 @@
 /**
  * AI Encyclopedia - Main Application Controller
  *
- * Tabbed encyclopedia explorer: click anywhere on content to open a new
- * detailed page in a new tab. Navigate between explored topics with tabs.
+ * Tabbed encyclopedia explorer with:
+ * - Background tab loading (stay on current tab while new content generates)
+ * - Instant voice feedback via browser SpeechSynthesis
+ * - Click anywhere to explore in new tabs
+ * - Image-to-video generation with Veo
  */
 
 import { VoiceManager } from './voice.js';
 import { EncyclopediaRenderer } from './renderer.js';
 
+// Enthusiastic voice phrases for instant feedback
+const VOICE_PHRASES = [
+    "Oh, {topic}! This is amazing! Let's explore it together!",
+    "Great choice! {topic} is fascinating! Let me create something special!",
+    "Ooh, {topic}! I love this topic! Let me build you a beautiful page!",
+    "{topic}! What a wonderful subject! Let's dive in!",
+    "Excellent! {topic} is one of my favorites! Creating your page now!",
+    "Oh wow, {topic}! You're going to love what I find! One moment!",
+];
+
 class App {
     constructor() {
         this.sessionId = crypto.randomUUID();
-        this.pageCache = {};  // topic -> pageData
-        this.tabs = [];       // [{ id, topic, pageData }]
+        this.pageCache = {};  // cacheKey -> pageData
+        this.tabs = [];       // [{ id, topic, pageData, loading }]
         this.activeTabId = null;
 
         // Initialize components
@@ -32,7 +45,7 @@ class App {
         this.searchInput = document.getElementById('search-input');
         this.searchBtn = document.getElementById('search-btn');
 
-        // Create a renderer (it will render into pageContainer)
+        // Create a renderer
         this.renderer = new EncyclopediaRenderer(this.pageContainer);
 
         this._initContentWebSocket();
@@ -125,9 +138,14 @@ class App {
             });
         }
 
-        // Wire up renderer click-to-explore: clicking anything opens a new tab
+        // Wire up renderer click-to-explore
         this.renderer.onExploreClick = (topic) => {
             this._openTopic(topic);
+        };
+
+        // Wire up renderer image-to-video (replaces image in-place)
+        this.renderer.onVideoRequest = (imageData, mimeType, topic, imageWrapper) => {
+            this._generateVideo(imageData, mimeType, topic, imageWrapper);
         };
     }
 
@@ -144,10 +162,41 @@ class App {
     }
 
     /**
-     * Open a topic - creates a new tab and generates the page.
+     * Speak an enthusiastic phrase about the topic using browser SpeechSynthesis.
+     */
+    _speakTopicFeedback(topic) {
+        if (!('speechSynthesis' in window)) return;
+
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+
+        const phrase = VOICE_PHRASES[Math.floor(Math.random() * VOICE_PHRASES.length)]
+            .replace('{topic}', topic);
+
+        const utterance = new SpeechSynthesisUtterance(phrase);
+        utterance.rate = 1.1;
+        utterance.pitch = 1.1;
+        utterance.volume = 0.8;
+
+        // Try to pick a good English voice
+        const voices = speechSynthesis.getVoices();
+        const preferred = voices.find(
+            (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Samantha'))
+        ) || voices.find((v) => v.lang.startsWith('en'));
+        if (preferred) utterance.voice = preferred;
+
+        speechSynthesis.speak(utterance);
+    }
+
+    /**
+     * Open a topic - creates a new background tab and generates the page.
+     * Stays on the current tab while loading happens in background.
      */
     async _openTopic(topic, focus = 'general overview') {
         const cacheKey = `${topic.toLowerCase()}|${focus.toLowerCase()}`;
+
+        // Speak instantly
+        this._speakTopicFeedback(topic);
 
         // If cached, open it in a new tab instantly
         if (this.pageCache[cacheKey]) {
@@ -155,11 +204,31 @@ class App {
             return;
         }
 
-        // Show loading and create a pending tab
-        this._showLoading();
+        // Check if topic already has a loading tab
+        const existingTab = this.tabs.find(
+            (t) => t.topic.toLowerCase() === topic.toLowerCase()
+        );
+        if (existingTab) {
+            // Flash the tab to show it's already loading/exists
+            const tabBtn = this.tabList.querySelector(`[data-tab-id="${existingTab.id}"]`);
+            if (tabBtn) {
+                tabBtn.classList.add('tab-flash');
+                setTimeout(() => tabBtn.classList.remove('tab-flash'), 600);
+            }
+            return;
+        }
+
+        // Create a "loading" tab in the background
+        const tabId = this._createLoadingTab(topic);
+
         this.welcomeScreen.classList.add('hidden');
-        this.transcriptText.textContent = `Exploring: ${topic}`;
+        this.transcriptText.textContent = `Loading: ${topic}`;
         this.transcriptBar.classList.add('active');
+
+        // If this is the first tab, show it (with loading state)
+        if (this.tabs.length === 1) {
+            this._switchToTab(tabId);
+        }
 
         try {
             const response = await fetch('/api/generate', {
@@ -176,59 +245,36 @@ class App {
 
             if (result.status === 'error') {
                 console.error('Generation failed:', result.message);
-                this._hideLoading();
-                this.transcriptText.textContent = `Error: ${result.message}`;
+                this._updateTabWithError(tabId, result.message);
             } else if (result.type === 'encyclopedia_page') {
                 this.pageCache[cacheKey] = result;
-                this._onPageReceived(result);
+                this._updateTabWithContent(tabId, result);
             }
         } catch (err) {
             console.error('API request failed:', err);
-            this._hideLoading();
-            this.transcriptText.textContent = 'Connection error. Please try again.';
+            this._updateTabWithError(tabId, 'Connection error. Please try again.');
         }
     }
 
     /**
-     * Handle a received encyclopedia page - creates a new tab.
+     * Create a loading tab (in the background, doesn't switch away from current tab).
      */
-    _onPageReceived(pageData) {
-        this._hideLoading();
-        this.welcomeScreen.classList.add('hidden');
-        this._createTab(pageData.topic, pageData);
-
-        this.transcriptText.textContent = pageData.topic;
-        this.transcriptBar.classList.add('active');
-        setTimeout(() => this.transcriptBar.classList.remove('active'), 2000);
-    }
-
-    /**
-     * Create a new tab for a topic.
-     */
-    _createTab(topic, pageData) {
+    _createLoadingTab(topic) {
         const tabId = `tab-${Date.now()}`;
 
-        // Check if topic already has an open tab
-        const existingTab = this.tabs.find(
-            (t) => t.topic.toLowerCase() === topic.toLowerCase()
-        );
-        if (existingTab) {
-            this._switchToTab(existingTab.id);
-            return;
-        }
-
-        // Add tab data
-        this.tabs.push({ id: tabId, topic, pageData });
+        // Add tab data with loading state
+        this.tabs.push({ id: tabId, topic, pageData: null, loading: true });
 
         // Show the tab bar
         this.tabBar.classList.remove('hidden');
         document.body.classList.add('has-tabs');
 
-        // Create tab button
+        // Create tab button with loading indicator
         const tabBtn = document.createElement('button');
-        tabBtn.className = 'tab-btn';
+        tabBtn.className = 'tab-btn tab-loading';
         tabBtn.dataset.tabId = tabId;
         tabBtn.innerHTML = `
+            <span class="tab-spinner"></span>
             <span class="tab-label">${this._escapeHtml(topic)}</span>
             <span class="tab-close" title="Close tab">&times;</span>
         `;
@@ -245,11 +291,123 @@ class App {
         });
 
         this.tabList.appendChild(tabBtn);
+        tabBtn.scrollIntoView({ behavior: 'smooth', inline: 'end' });
 
-        // Switch to the new tab
+        return tabId;
+    }
+
+    /**
+     * Update a loading tab with actual content.
+     */
+    _updateTabWithContent(tabId, pageData) {
+        const tab = this.tabs.find((t) => t.id === tabId);
+        if (!tab) return;
+
+        tab.pageData = pageData;
+        tab.loading = false;
+
+        // Update tab button - remove loading state, add ready indicator
+        const tabBtn = this.tabList.querySelector(`[data-tab-id="${tabId}"]`);
+        if (tabBtn) {
+            tabBtn.classList.remove('tab-loading');
+            tabBtn.classList.add('tab-ready');
+            // Remove spinner
+            const spinner = tabBtn.querySelector('.tab-spinner');
+            if (spinner) spinner.remove();
+            // Brief flash to notify user
+            setTimeout(() => tabBtn.classList.remove('tab-ready'), 1500);
+        }
+
+        // If this tab is active, render it
+        if (this.activeTabId === tabId) {
+            this._hideLoading();
+            this.renderer.renderPage(pageData);
+        }
+
+        this.transcriptText.textContent = `Ready: ${pageData.topic}`;
+        this.transcriptBar.classList.add('active');
+        setTimeout(() => this.transcriptBar.classList.remove('active'), 2000);
+    }
+
+    /**
+     * Update a loading tab with an error.
+     */
+    _updateTabWithError(tabId, message) {
+        const tab = this.tabs.find((t) => t.id === tabId);
+        if (!tab) return;
+
+        tab.loading = false;
+
+        const tabBtn = this.tabList.querySelector(`[data-tab-id="${tabId}"]`);
+        if (tabBtn) {
+            tabBtn.classList.remove('tab-loading');
+            tabBtn.classList.add('tab-error');
+            const spinner = tabBtn.querySelector('.tab-spinner');
+            if (spinner) spinner.remove();
+        }
+
+        if (this.activeTabId === tabId) {
+            this._hideLoading();
+            this.pageContainer.innerHTML = `
+                <div style="text-align:center;padding:4rem 2rem;color:#666;">
+                    <h2 style="color:#e74c3c;">Error</h2>
+                    <p>${this._escapeHtml(message)}</p>
+                    <button onclick="window.app._closeTab('${tabId}')"
+                            style="margin-top:1rem;padding:0.5rem 1.5rem;border:2px solid #e74c3c;background:transparent;color:#e74c3c;border-radius:20px;cursor:pointer;font-weight:600;">
+                        Close Tab
+                    </button>
+                </div>`;
+        }
+    }
+
+    /**
+     * Handle a received encyclopedia page (from content WebSocket).
+     */
+    _onPageReceived(pageData) {
+        this._hideLoading();
+        this.welcomeScreen.classList.add('hidden');
+        this._createTab(pageData.topic, pageData);
+    }
+
+    /**
+     * Create a completed tab for a topic (for cached content).
+     */
+    _createTab(topic, pageData) {
+        const tabId = `tab-${Date.now()}`;
+
+        // Check if topic already has an open tab
+        const existingTab = this.tabs.find(
+            (t) => t.topic.toLowerCase() === topic.toLowerCase()
+        );
+        if (existingTab) {
+            this._switchToTab(existingTab.id);
+            return;
+        }
+
+        this.tabs.push({ id: tabId, topic, pageData, loading: false });
+
+        this.tabBar.classList.remove('hidden');
+        document.body.classList.add('has-tabs');
+
+        const tabBtn = document.createElement('button');
+        tabBtn.className = 'tab-btn';
+        tabBtn.dataset.tabId = tabId;
+        tabBtn.innerHTML = `
+            <span class="tab-label">${this._escapeHtml(topic)}</span>
+            <span class="tab-close" title="Close tab">&times;</span>
+        `;
+
+        tabBtn.querySelector('.tab-label').addEventListener('click', () => {
+            this._switchToTab(tabId);
+        });
+
+        tabBtn.querySelector('.tab-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._closeTab(tabId);
+        });
+
+        this.tabList.appendChild(tabBtn);
         this._switchToTab(tabId);
-
-        // Scroll tab into view
         tabBtn.scrollIntoView({ behavior: 'smooth', inline: 'end' });
     }
 
@@ -267,11 +425,16 @@ class App {
             btn.classList.toggle('active', btn.dataset.tabId === tabId);
         });
 
-        // Render the page
-        this.renderer.renderPage(tab.pageData);
+        if (tab.loading) {
+            // Show loading state for this tab
+            this._showLoading();
+            this.pageContainer.classList.add('hidden');
+        } else if (tab.pageData) {
+            this._hideLoading();
+            this.renderer.renderPage(tab.pageData);
+        }
 
-        // Update transcript
-        this.transcriptText.textContent = tab.topic;
+        this.transcriptText.textContent = tab.loading ? `Loading: ${tab.topic}` : tab.topic;
         this.transcriptBar.classList.add('active');
         setTimeout(() => this.transcriptBar.classList.remove('active'), 1500);
     }
@@ -283,24 +446,20 @@ class App {
         const index = this.tabs.findIndex((t) => t.id === tabId);
         if (index === -1) return;
 
-        // Remove tab data
         this.tabs.splice(index, 1);
 
-        // Remove tab button
         const tabBtn = this.tabList.querySelector(`[data-tab-id="${tabId}"]`);
         if (tabBtn) tabBtn.remove();
 
-        // If we closed the active tab, switch to another
         if (this.activeTabId === tabId) {
             if (this.tabs.length > 0) {
-                // Switch to the previous or last tab
                 const newIndex = Math.min(index, this.tabs.length - 1);
                 this._switchToTab(this.tabs[newIndex].id);
             } else {
-                // No tabs left - show welcome screen
                 this.activeTabId = null;
                 this.pageContainer.classList.add('hidden');
                 this.pageContainer.innerHTML = '';
+                this._hideLoading();
                 this.welcomeScreen.classList.remove('hidden');
                 this.tabBar.classList.add('hidden');
                 document.body.classList.remove('has-tabs');
@@ -309,22 +468,92 @@ class App {
     }
 
     /**
-     * Show the loading overlay.
+     * Generate a video from an image using Veo, replacing the image in-place.
+     * @param {string} imageData - base64 image data
+     * @param {string} mimeType - image MIME type
+     * @param {string} topic - topic for animation prompt
+     * @param {HTMLElement} imageWrapper - the .image-wrapper element containing the image
      */
+    async _generateVideo(imageData, mimeType, topic, imageWrapper) {
+        if (!imageWrapper) return;
+
+        // Show loading overlay on the image itself
+        const overlay = document.createElement('div');
+        overlay.className = 'video-loading-overlay';
+        overlay.innerHTML = `
+            <div class="spinner"><div class="spinner-ring"></div><div class="spinner-ring"></div><div class="spinner-ring"></div></div>
+            <p>Creating video...</p>
+            <p class="video-hint">This may take 30-60 seconds</p>
+        `;
+        imageWrapper.style.position = 'relative';
+        imageWrapper.appendChild(overlay);
+
+        // Disable the video button while generating
+        const videoBtn = imageWrapper.querySelector('.video-btn');
+        if (videoBtn) videoBtn.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/generate-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image_data: imageData,
+                    mime_type: mimeType,
+                    topic: topic,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'error') {
+                overlay.innerHTML = `
+                    <p style="color:#fff;font-weight:600;">Video Error</p>
+                    <p style="color:rgba(255,255,255,0.8);font-size:0.85rem;">${this._escapeHtml(result.message)}</p>
+                `;
+                setTimeout(() => {
+                    overlay.remove();
+                    if (videoBtn) videoBtn.style.display = '';
+                }, 3000);
+            } else if (result.video_data) {
+                // Replace the image with a video element
+                overlay.remove();
+                const img = imageWrapper.querySelector('.encyclopedia-image');
+                if (img) {
+                    const video = document.createElement('video');
+                    video.controls = true;
+                    video.autoplay = true;
+                    video.loop = true;
+                    video.className = 'encyclopedia-image encyclopedia-video';
+                    video.innerHTML = `
+                        <source src="data:${result.video_mime_type || 'video/mp4'};base64,${result.video_data}"
+                                type="${result.video_mime_type || 'video/mp4'}">
+                    `;
+                    img.replaceWith(video);
+                }
+                // Remove the video button since we already have the video
+                if (videoBtn) videoBtn.remove();
+            }
+        } catch (err) {
+            console.error('Video generation failed:', err);
+            overlay.innerHTML = `
+                <p style="color:#fff;font-weight:600;">Connection Error</p>
+                <p style="color:rgba(255,255,255,0.8);font-size:0.85rem;">Please try again</p>
+            `;
+            setTimeout(() => {
+                overlay.remove();
+                if (videoBtn) videoBtn.style.display = '';
+            }, 3000);
+        }
+    }
+
     _showLoading() {
         this.loadingOverlay.classList.remove('hidden');
     }
 
-    /**
-     * Hide the loading overlay.
-     */
     _hideLoading() {
         this.loadingOverlay.classList.add('hidden');
     }
 
-    /**
-     * Escape HTML for safe rendering.
-     */
     _escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text || '';

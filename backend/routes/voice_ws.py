@@ -61,6 +61,13 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
     run_config = RunConfig(
         streaming_mode=StreamingMode.BIDI,
         response_modalities=["AUDIO"],
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                    voice_name="Kore",
+                )
+            )
+        ),
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
     )
@@ -68,10 +75,13 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
     live_request_queue = LiveRequestQueue()
     logger.info(f"Voice WebSocket connected for session: {session_id}")
 
+    # Signal to coordinate shutdown between upstream/downstream
+    shutdown_event = asyncio.Event()
+
     async def upstream():
         """Receive audio/text from browser, forward to ADK agent."""
         try:
-            while True:
+            while not shutdown_event.is_set():
                 raw = await websocket.receive()
 
                 if "bytes" in raw and raw["bytes"]:
@@ -102,10 +112,18 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
             logger.info(f"Upstream disconnected for session: {session_id}")
         except Exception as e:
             logger.error(f"Upstream error: {e}", exc_info=True)
+        finally:
+            shutdown_event.set()
 
     async def downstream():
         """Stream ADK agent events back to browser."""
         try:
+            # Notify client that voice session is ready
+            await websocket.send_text(json.dumps({
+                "type": "voice_ready",
+                "data": "Voice session established",
+            }))
+
             async for event in runner.run_live(
                 user_id=user_id,
                 session_id=session_id,
@@ -157,9 +175,19 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
             logger.info(f"Downstream disconnected for session: {session_id}")
         except Exception as e:
             logger.error(f"Downstream error: {e}", exc_info=True)
+            # Send error to client so they know what happened
+            try:
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "data": f"Voice stream error: {str(e)}",
+                }))
+            except Exception:
+                pass
+        finally:
+            shutdown_event.set()
 
     try:
-        await asyncio.gather(upstream(), downstream(), return_exceptions=True)
+        await asyncio.gather(upstream(), downstream())
     finally:
         live_request_queue.close()
         logger.info(f"Voice WebSocket closed for session: {session_id}")
