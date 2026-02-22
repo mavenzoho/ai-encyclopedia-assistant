@@ -37,55 +37,55 @@ async def generate_video(request: VideoRequest):
         # Decode the base64 image
         image_bytes = base64.b64decode(request.image_data)
 
-        image_part = genai_types.Part.from_bytes(
-            data=image_bytes,
-            mime_type=request.mime_type,
-        )
+        # Veo requires types.Image, not types.Part
+        image = genai_types.Image(image_bytes=image_bytes, mime_type=request.mime_type)
 
-        prompt = f"Gently animate this illustration about {request.topic}. Add subtle motion, " \
-                 "parallax depth, and natural movement. Keep it smooth and educational."
+        prompt = (
+            f"Gently animate this illustration about {request.topic}. "
+            "Add subtle motion, parallax depth, and natural movement. "
+            "Keep it smooth and educational."
+        )
 
         # Start video generation
         operation = _client.models.generate_videos(
             model=VIDEO_MODEL,
             prompt=prompt,
-            image=image_part,
+            image=image,
             config=genai_types.GenerateVideosConfig(
+                person_generation="dont_allow",
                 aspect_ratio="16:9",
                 number_of_videos=1,
             ),
         )
 
-        # Poll until complete (max 120 seconds)
-        max_wait = 120
+        # Poll until complete (max 180 seconds)
+        max_wait = 180
         start = time.time()
         while not operation.done:
             if time.time() - start > max_wait:
                 return JSONResponse(
-                    content={"status": "error", "message": "Video generation timed out"},
+                    content={"status": "error", "message": "Video generation timed out. Please try again."},
                     status_code=504,
                 )
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)
             operation = _client.operations.get(operation)
 
         # Extract the generated video
         if operation.response and operation.response.generated_videos:
-            video = operation.response.generated_videos[0].video
-            if video and video.uri:
-                # Download the video from the URI
-                video_file = _client.files.download(file=video)
-                video_bytes = video_file
-                video_b64 = base64.b64encode(video_bytes).decode("utf-8")
+            generated_video = operation.response.generated_videos[0]
+            # Download the video bytes
+            video_bytes = _client.files.download(file=generated_video.video)
+            video_b64 = base64.b64encode(video_bytes).decode("utf-8")
 
-                logger.info(f"Video generated successfully for: {request.topic}")
-                return JSONResponse(content={
-                    "status": "success",
-                    "video_data": video_b64,
-                    "video_mime_type": "video/mp4",
-                })
+            logger.info(f"Video generated successfully for: {request.topic}")
+            return JSONResponse(content={
+                "status": "success",
+                "video_data": video_b64,
+                "video_mime_type": "video/mp4",
+            })
 
         return JSONResponse(
-            content={"status": "error", "message": "No video was generated"},
+            content={"status": "error", "message": "No video was generated. The content may have been filtered."},
             status_code=500,
         )
 
