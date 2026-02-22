@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.adk.runners import Runner
@@ -22,6 +23,28 @@ runner = Runner(
     agent=root_agent,
     session_service=session_service,
 )
+
+
+def _is_agent_reasoning(text: str) -> bool:
+    """Filter out internal agent reasoning/tool-calling text.
+
+    The ADK agent outputs its thinking process as text parts, including
+    tool call decisions and markdown formatting. We only want to forward
+    clean spoken responses to the user.
+    """
+    t = text.strip()
+    # Agent reasoning patterns - markdown, tool calls, internal logic
+    if re.search(r'\*\*.*\*\*', t):  # **bold markdown**
+        return True
+    if '`' in t:  # backtick code references
+        return True
+    if 'generate_encyclopedia_page' in t:
+        return True
+    if re.search(r"I've decided|I will now|I'm going to|Let me|I'll proceed", t, re.I):
+        return True
+    if re.search(r'tool|function|argument|parameter|calling', t, re.I) and len(t) > 50:
+        return True
+    return False
 
 
 @router.websocket("/ws/voice/{session_id}")
@@ -143,8 +166,8 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
                         await websocket.send_bytes(part.inline_data.data)
                         continue
 
-                    # Text part - send as JSON event
-                    if part.text:
+                    # Text part - filter out agent reasoning, only send clean speech
+                    if part.text and not _is_agent_reasoning(part.text):
                         await websocket.send_text(
                             json.dumps({
                                 "type": "transcription",

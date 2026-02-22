@@ -163,10 +163,14 @@ export class EncyclopediaRenderer {
                     if (e.target.closest('.video-btn')) return;
                     e.stopPropagation();
                     const sectionParent = wrapper.closest('.encyclopedia-section');
-                    const heading = sectionParent?.querySelector('h1, h2, h3');
-                    const topic = heading
-                        ? heading.textContent.trim()
-                        : this._extractTopicFromText(section.text);
+                    // Find the first non-generic heading in this section
+                    let topic = '';
+                    const headings = sectionParent?.querySelectorAll('h1, h2, h3') || [];
+                    for (const h of headings) {
+                        const t = h.textContent.trim();
+                        if (!this._isGenericHeading(t)) { topic = t; break; }
+                    }
+                    if (!topic) topic = this._extractTopicFromText(section.text);
                     if (topic && this.onExploreClick) {
                         this._showRipple(wrapper, e);
                         this.onExploreClick(topic);
@@ -189,10 +193,13 @@ export class EncyclopediaRenderer {
                     e.stopPropagation();
                     if (this.onVideoRequest) {
                         const sectionParent = wrapper.closest('.encyclopedia-section');
-                        const heading = sectionParent?.querySelector('h1, h2, h3');
-                        const topic = heading
-                            ? heading.textContent.trim()
-                            : this._extractTopicFromText(section.text);
+                        let topic = '';
+                        const headings = sectionParent?.querySelectorAll('h1, h2, h3') || [];
+                        for (const h of headings) {
+                            const t = h.textContent.trim();
+                            if (!this._isGenericHeading(t)) { topic = t; break; }
+                        }
+                        if (!topic) topic = this._extractTopicFromText(section.text);
                         this.onVideoRequest(img.data, img.mime_type, topic || 'this image', wrapper);
                     }
                 });
@@ -208,16 +215,35 @@ export class EncyclopediaRenderer {
     }
 
     /**
+     * Generic section headings that should NOT be used as exploration topics.
+     * These are structural labels, not meaningful subjects.
+     */
+    static GENERIC_HEADINGS = new Set([
+        'overview', 'introduction', 'key facts', 'deep dive', 'how it works',
+        'did you know', 'did you know?', 'fun facts', 'fun fact', 'facts',
+        'summary', 'conclusion', 'related topics', 'explore more',
+        'what is it', 'what is it?', 'why it matters', 'in detail',
+        'quick facts', 'fast facts', 'at a glance', 'the basics',
+        'main features', 'key features', 'characteristics', 'description',
+        'background', 'history', 'origins', 'timeline', 'gallery',
+    ]);
+
+    _isGenericHeading(text) {
+        return EncyclopediaRenderer.GENERIC_HEADINGS.has(text.toLowerCase().replace(/[:#?!]/g, '').trim());
+    }
+
+    /**
      * Make text elements clickable for exploration.
      * Clicking a heading, paragraph, bold term, or list item triggers exploration.
      */
     _makeClickable(textEl) {
-        // Headings are clickable
+        // Headings are clickable (skip generic section labels)
         textEl.querySelectorAll('h1, h2, h3').forEach((heading) => {
+            const topic = heading.textContent.trim();
+            if (this._isGenericHeading(topic)) return; // skip generic headings
             heading.classList.add('clickable-area');
             heading.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const topic = heading.textContent.trim();
                 if (topic && this.onExploreClick) {
                     this._showRipple(heading, e);
                     this.onExploreClick(topic);
@@ -289,13 +315,17 @@ export class EncyclopediaRenderer {
 
     /**
      * Extract a topic from a paragraph element by finding the nearest heading.
+     * Skips generic section headings and falls back to text content.
      */
     _extractTopicFromElement(el) {
-        // Walk backwards to find a heading
+        // Walk backwards to find a meaningful (non-generic) heading
         let prev = el.previousElementSibling;
         while (prev) {
             if (/^H[1-3]$/.test(prev.tagName)) {
-                return prev.textContent.trim();
+                const headingText = prev.textContent.trim();
+                if (!this._isGenericHeading(headingText)) {
+                    return headingText;
+                }
             }
             prev = prev.previousElementSibling;
         }
