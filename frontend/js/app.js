@@ -45,6 +45,13 @@ class App {
         this.searchInput = document.getElementById('search-input');
         this.searchBtn = document.getElementById('search-btn');
 
+        // Voice overlay elements
+        this.voiceOverlay = document.getElementById('voice-overlay');
+        this.voiceOverlayText = document.getElementById('voice-overlay-text');
+        this.voiceOverlayLabel = document.getElementById('voice-overlay-label');
+        this.voiceOverlayStatus = document.getElementById('voice-overlay-status');
+        this._voiceOverlayTimeout = null;
+
         // Create a renderer
         this.renderer = new EncyclopediaRenderer(this.pageContainer);
 
@@ -83,21 +90,56 @@ class App {
      */
     _initVoiceCallbacks() {
         this.voiceManager.onTranscription = (text, partial) => {
+            // Show in topbar
             this.transcriptText.textContent = text;
             this.transcriptBar.classList.add('active');
+
+            // Show prominently in voice overlay
+            this._showVoiceOverlay('hearing', text, partial ? 'Listening...' : 'I heard you!');
+
             if (!partial && text && text.length > 5) {
-                this._showLoading();
+                // Heard a complete phrase - show confirmation then hide
+                this._showVoiceOverlay('heard', text, 'Processing your request...');
+                setTimeout(() => this._hideVoiceOverlay(), 2500);
             }
         };
 
         this.voiceManager.onOutputTranscription = (text) => {
             this.transcriptText.textContent = text;
             this.transcriptBar.classList.add('active');
+
+            // Show AI's response text on screen
+            this._showVoiceOverlay('speaking', text, 'AI is speaking');
+            clearTimeout(this._voiceOverlayTimeout);
+            this._voiceOverlayTimeout = setTimeout(() => this._hideVoiceOverlay(), 4000);
         };
 
         this.voiceManager.onStatusChange = (status) => {
             this.statusText.textContent = status;
         };
+    }
+
+    /**
+     * Show the voice overlay with transcription text.
+     */
+    _showVoiceOverlay(mode, text, label) {
+        if (!this.voiceOverlay) return;
+        this.voiceOverlay.classList.remove('hidden');
+        this.voiceOverlay.dataset.mode = mode;
+        if (text) this.voiceOverlayText.textContent = text;
+        if (label) this.voiceOverlayLabel.textContent = label;
+
+        // Clear any pending hide
+        clearTimeout(this._voiceOverlayTimeout);
+    }
+
+    /**
+     * Hide the voice overlay.
+     */
+    _hideVoiceOverlay() {
+        if (!this.voiceOverlay) return;
+        this.voiceOverlay.classList.add('hidden');
+        this.voiceOverlayText.textContent = '';
     }
 
     /**
@@ -109,6 +151,11 @@ class App {
             try {
                 await this.voiceManager.toggle();
                 this.micBtn.classList.toggle('listening', this.voiceManager.isListening);
+                if (this.voiceManager.isListening) {
+                    this._showVoiceOverlay('hearing', '', 'Listening... Speak now!');
+                } else {
+                    this._hideVoiceOverlay();
+                }
             } catch (err) {
                 console.error('Mic toggle failed:', err);
                 this.statusText.textContent = 'Mic error - try typing instead';

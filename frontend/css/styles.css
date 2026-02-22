@@ -572,6 +572,114 @@ body.has-tabs .loading {
 }
 
 /* ========================================
+   Voice Overlay - Live Transcription Display
+   ======================================== */
+
+.voice-overlay {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    animation: voiceSlideUp 0.3s ease;
+}
+
+@keyframes voiceSlideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.voice-overlay-content {
+    background: var(--color-topbar);
+    color: white;
+    padding: 1.25rem 2rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    min-width: 320px;
+    max-width: 600px;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.voice-indicator {
+    margin-bottom: 0.75rem;
+}
+
+.voice-wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 30px;
+}
+
+.voice-wave span {
+    display: inline-block;
+    width: 4px;
+    height: 8px;
+    background: var(--color-accent);
+    border-radius: 2px;
+    animation: voiceWave 1s ease-in-out infinite;
+}
+
+.voice-wave span:nth-child(1) { animation-delay: 0s; }
+.voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+.voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+.voice-wave span:nth-child(4) { animation-delay: 0.3s; }
+.voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes voiceWave {
+    0%, 100% { height: 8px; }
+    50% { height: 24px; }
+}
+
+/* Stop animation when AI is speaking or done hearing */
+.voice-overlay[data-mode="heard"] .voice-wave span,
+.voice-overlay[data-mode="speaking"] .voice-wave span {
+    animation: none;
+    height: 4px;
+    background: var(--color-success);
+}
+
+.voice-label {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    margin-bottom: 0.5rem;
+}
+
+.voice-text {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.4;
+    min-height: 1.5rem;
+    color: white;
+}
+
+.voice-overlay[data-mode="heard"] .voice-text {
+    color: var(--color-success);
+}
+
+.voice-overlay[data-mode="speaking"] .voice-text {
+    color: rgba(255,255,255,0.85);
+    font-size: 1rem;
+    font-weight: 400;
+    font-style: italic;
+}
+
+.voice-status {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.5);
+    margin-top: 0.5rem;
+}
+
+/* ========================================
    Utility
    ======================================== */
 
