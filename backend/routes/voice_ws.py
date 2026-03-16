@@ -81,13 +81,14 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
         return
 
     # Configure for bidirectional audio streaming
+    # Using "Orus" voice for Atlas persona — warm, authoritative, storyteller quality
     run_config = RunConfig(
         streaming_mode=StreamingMode.BIDI,
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
                 prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                    voice_name="Kore",
+                    voice_name="Orus",
                 )
             )
         ),
@@ -125,11 +126,9 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
                         )
                         live_request_queue.send_content(content)
 
-                    elif msg.get("type") == "audio_end":
-                        # User paused speaking
-                        live_request_queue.send_realtime(
-                            types.ActivityEnd(activity=types.Activity.LISTEN)
-                        )
+                    # Note: audio_end / ActivityEnd is not sent as it can cause
+                    # 1007 errors with native audio models. The model handles
+                    # voice activity detection automatically.
 
         except WebSocketDisconnect:
             logger.info(f"Upstream disconnected for session: {session_id}")

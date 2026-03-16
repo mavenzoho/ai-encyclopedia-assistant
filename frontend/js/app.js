@@ -11,14 +11,14 @@
 import { VoiceManager } from './voice.js';
 import { EncyclopediaRenderer } from './renderer.js';
 
-// Enthusiastic voice phrases for instant feedback
+// Atlas persona voice phrases for instant feedback
 const VOICE_PHRASES = [
-    "Oh, {topic}! This is amazing! Let's explore it together!",
-    "Great choice! {topic} is fascinating! Let me create something special!",
-    "Ooh, {topic}! I love this topic! Let me build you a beautiful page!",
-    "{topic}! What a wonderful subject! Let's dive in!",
-    "Excellent! {topic} is one of my favorites! Creating your page now!",
-    "Oh wow, {topic}! You're going to love what I find! One moment!",
+    "Oh, {topic}! This is one of my absolute favorites! Let me take you on a journey!",
+    "Now here's where it gets truly remarkable — {topic}! Let me create something special!",
+    "{topic}! Picture this — I'm putting together a stunning visual story for you!",
+    "What a brilliant choice! {topic} has such a fascinating story. Let me show you!",
+    "{topic}! I've been waiting for someone to ask about this! One moment!",
+    "Oh, {topic}! What most people don't realize is how incredible this subject is. Let's explore!",
 ];
 
 class App {
@@ -27,6 +27,9 @@ class App {
         this.pageCache = {};  // cacheKey -> pageData
         this.tabs = [];       // [{ id, topic, pageData, loading }]
         this.activeTabId = null;
+        this._narrationQueue = [];  // Queue of text segments to narrate
+        this._isNarrating = false;  // Whether narration is currently playing
+        this._narrationEnabled = true; // User can toggle narration
 
         // Initialize components
         this.voiceManager = new VoiceManager(this.sessionId);
@@ -34,9 +37,10 @@ class App {
 
         // DOM elements
         this.micBtn = document.getElementById('mic-btn');
+        this.heroMicBtn = document.getElementById('hero-mic-btn');
         this.statusText = document.getElementById('status-text');
         this.transcriptText = document.getElementById('transcript-text');
-        this.transcriptBar = document.getElementById('transcript-bar');
+        // transcript-bar removed; transcriptText is now a plain span
         this.welcomeScreen = document.getElementById('welcome-screen');
         this.loadingOverlay = document.getElementById('loading-overlay');
         this.pageContainer = document.getElementById('page-container');
@@ -52,12 +56,21 @@ class App {
         this.voiceOverlayStatus = document.getElementById('voice-overlay-status');
         this._voiceOverlayTimeout = null;
 
+        // Help bubble
+        this.helpBubble = document.getElementById('help-bubble');
+        this.helpBubbleText = document.getElementById('help-bubble-text');
+        this.helpBubbleClose = document.getElementById('help-bubble-close');
+        this._helpIndex = 0;
+        this._helpTimer = null;
+        this._helpDismissed = false;
+
         // Create a renderer
         this.renderer = new EncyclopediaRenderer(this.pageContainer);
 
         this._initContentWebSocket();
         this._initVoiceCallbacks();
         this._initUI();
+        this._initHelpBubble();
     }
 
     /**
@@ -92,7 +105,7 @@ class App {
         this.voiceManager.onTranscription = (text, partial) => {
             // Show in topbar
             this.transcriptText.textContent = text;
-            this.transcriptBar.classList.add('active');
+            // status shown via transcriptText
 
             // Show prominently in voice overlay
             this._showVoiceOverlay('hearing', text, partial ? 'Listening...' : 'I heard you!');
@@ -106,7 +119,7 @@ class App {
 
         this.voiceManager.onOutputTranscription = (text) => {
             this.transcriptText.textContent = text;
-            this.transcriptBar.classList.add('active');
+            // status shown via transcriptText
 
             // Show AI's response text on screen
             this._showVoiceOverlay('speaking', text, 'AI is speaking');
@@ -146,21 +159,41 @@ class App {
      * Initialize UI event handlers.
      */
     _initUI() {
-        // Microphone toggle
+        // Shared mic toggle logic
+        const toggleMic = async () => {
+            this._stopNarration();
+            await this.voiceManager.toggle();
+            const listening = this.voiceManager.isListening;
+            this.micBtn.classList.toggle('listening', listening);
+            if (this.heroMicBtn) this.heroMicBtn.classList.toggle('listening', listening);
+            if (listening) {
+                this._showVoiceOverlay('hearing', '', 'Listening... Speak now!');
+            } else {
+                this._hideVoiceOverlay();
+            }
+        };
+
+        // Floating mic button (bottom of screen, visible on encyclopedia pages)
         this.micBtn.addEventListener('click', async () => {
             try {
-                await this.voiceManager.toggle();
-                this.micBtn.classList.toggle('listening', this.voiceManager.isListening);
-                if (this.voiceManager.isListening) {
-                    this._showVoiceOverlay('hearing', '', 'Listening... Speak now!');
-                } else {
-                    this._hideVoiceOverlay();
-                }
+                await toggleMic();
             } catch (err) {
                 console.error('Mic toggle failed:', err);
                 this.statusText.textContent = 'Mic error - try typing instead';
             }
         });
+
+        // Hero mic button (big button on welcome screen)
+        if (this.heroMicBtn) {
+            this.heroMicBtn.addEventListener('click', async () => {
+                try {
+                    await toggleMic();
+                } catch (err) {
+                    console.error('Mic toggle failed:', err);
+                    this.statusText.textContent = 'Mic error - try typing instead';
+                }
+            });
+        }
 
         // Suggestion chips on welcome screen
         document.querySelectorAll('.chip').forEach((chip) => {
@@ -269,6 +302,7 @@ class App {
         const tabId = this._createLoadingTab(topic);
 
         this.welcomeScreen.classList.add('hidden');
+        document.body.classList.add('has-content');
         this.transcriptText.textContent = `Loading: ${topic}`;
         this.transcriptBar.classList.add('active');
 
@@ -278,6 +312,12 @@ class App {
         }
 
         try {
+            // Gather prior explored topics for context-aware generation
+            const priorTopics = this.tabs
+                .filter((t) => t.topic.toLowerCase() !== topic.toLowerCase() && !t.loading)
+                .map((t) => t.topic)
+                .slice(-5);  // last 5 topics for context
+
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -285,6 +325,7 @@ class App {
                     topic: topic,
                     focus: focus,
                     session_id: this.sessionId,
+                    prior_topics: priorTopics,
                 }),
             });
 
@@ -365,15 +406,23 @@ class App {
             setTimeout(() => tabBtn.classList.remove('tab-ready'), 1500);
         }
 
-        // If this tab is active, render it
+        // If this tab is active, render it and start narration
         if (this.activeTabId === tabId) {
             this._hideLoading();
             this.renderer.renderPage(pageData);
+            this._narratePage(pageData);
+        }
+
+        // Show contextual help tip when content arrives
+        if (!this._helpDismissed) {
+            this._helpIndex = 0; // reset to show category-appropriate tips
+            clearTimeout(this._helpTimer);
+            this._helpTimer = setTimeout(() => this._showNextHelpTip(), 3000);
         }
 
         this.transcriptText.textContent = `Ready: ${pageData.topic}`;
-        this.transcriptBar.classList.add('active');
-        setTimeout(() => this.transcriptBar.classList.remove('active'), 2000);
+        // transcript auto-clears
+        setTimeout(() => { this.transcriptText.textContent = ''; }, 3000);
     }
 
     /**
@@ -465,6 +514,8 @@ class App {
         const tab = this.tabs.find((t) => t.id === tabId);
         if (!tab) return;
 
+        // Stop narration from previous tab
+        this._stopNarration();
         this.activeTabId = tabId;
 
         // Update tab button styles
@@ -479,11 +530,13 @@ class App {
         } else if (tab.pageData) {
             this._hideLoading();
             this.renderer.renderPage(tab.pageData);
+            // Re-narrate when switching to a completed tab
+            this._narratePage(tab.pageData);
         }
 
         this.transcriptText.textContent = tab.loading ? `Loading: ${tab.topic}` : tab.topic;
-        this.transcriptBar.classList.add('active');
-        setTimeout(() => this.transcriptBar.classList.remove('active'), 1500);
+        // transcript auto-clears
+        setTimeout(() => { this.transcriptText.textContent = ''; }, 2000);
     }
 
     /**
@@ -510,6 +563,7 @@ class App {
                 this.welcomeScreen.classList.remove('hidden');
                 this.tabBar.classList.add('hidden');
                 document.body.classList.remove('has-tabs');
+                document.body.classList.remove('has-content');
             }
         }
     }
@@ -590,6 +644,177 @@ class App {
                 overlay.remove();
                 if (videoBtn) videoBtn.style.display = '';
             }, 3000);
+        }
+    }
+
+    /**
+     * Smart help bubble — rotates through contextual, fun tips to guide the user.
+     */
+    _initHelpBubble() {
+        // Tips rotate based on what the user has done
+        this._helpTips = {
+            welcome: [
+                "Hey! I'm Atlas, your Encyclopia guide. Hit that big red button and say any topic!",
+                "Try saying \"Tell me about black holes\" — I dare you.",
+                "Fun fact: I can illustrate anything. Even quantum physics. Mostly.",
+                "Type a topic below, or just talk to me. I don't bite.",
+                "Pro tip: I work best when you're curious. So... be curious!",
+            ],
+            firstPage: [
+                "See something interesting? Click any bold word to explore deeper!",
+                "Every image is clickable — tap one to learn more about what's in it.",
+                "Want a video? Hit the play button on any illustration!",
+                "I'm narrating this page for you. Click the mic to interrupt me anytime.",
+            ],
+            exploring: [
+                "You're on a roll! I draw connections between topics you've explored.",
+                "Try clicking a \"Related Topic\" chip at the bottom of the page.",
+                "Switch between your tabs to revisit earlier discoveries.",
+                "Ask me to compare two things — like \"volcanoes vs earthquakes\"!",
+            ],
+        };
+
+        // Show first tip after a short delay
+        setTimeout(() => this._showNextHelpTip(), 2500);
+
+        // Close button
+        if (this.helpBubbleClose) {
+            this.helpBubbleClose.addEventListener('click', () => {
+                this._helpDismissed = true;
+                this.helpBubble.classList.add('hidden');
+                clearTimeout(this._helpTimer);
+            });
+        }
+    }
+
+    _showNextHelpTip() {
+        if (this._helpDismissed || !this.helpBubble) return;
+
+        // Pick tip category based on state
+        let category = 'welcome';
+        if (this.tabs.length > 1) {
+            category = 'exploring';
+        } else if (this.tabs.length === 1) {
+            category = 'firstPage';
+        }
+
+        const tips = this._helpTips[category];
+        const tip = tips[this._helpIndex % tips.length];
+        this._helpIndex++;
+
+        this.helpBubbleText.textContent = tip;
+        this.helpBubble.classList.remove('hidden');
+        // Re-trigger animation
+        this.helpBubble.style.animation = 'none';
+        this.helpBubble.offsetHeight; // reflow
+        this.helpBubble.style.animation = '';
+
+        // Auto-rotate every 12 seconds, hide after 3 rotations per category
+        clearTimeout(this._helpTimer);
+        if (this._helpIndex <= tips.length * 1.5) {
+            this._helpTimer = setTimeout(() => this._showNextHelpTip(), 12000);
+        } else {
+            // After enough tips, fade out
+            this._helpTimer = setTimeout(() => {
+                this.helpBubble.classList.add('hidden');
+            }, 8000);
+        }
+    }
+
+    /**
+     * Narrate encyclopedia sections aloud for seamless text+image+audio interleaving.
+     * Each section's text is spoken via SpeechSynthesis as the user reads, creating
+     * a documentary-like experience where narration accompanies visuals.
+     */
+    _narratePage(pageData) {
+        if (!this._narrationEnabled || !('speechSynthesis' in window)) return;
+
+        // Stop any ongoing narration
+        this._stopNarration();
+
+        // Build narration queue from page sections
+        this._narrationQueue = [];
+
+        // Opening line
+        this._narrationQueue.push(
+            `Welcome to our exploration of ${pageData.topic}. Let me guide you through this.`
+        );
+
+        if (pageData.sections) {
+            for (const section of pageData.sections) {
+                if (!section.text) continue;
+                // Strip markdown, extract clean narration text
+                const clean = section.text
+                    .replace(/^#{1,3}\s+/gm, '')       // remove headings markup
+                    .replace(/\*\*(.+?)\*\*/g, '$1')    // bold
+                    .replace(/\*(.+?)\*/g, '$1')         // italic
+                    .replace(/^[-*]\s+/gm, '')           // list markers
+                    .replace(/\n{2,}/g, '\n')
+                    .trim();
+
+                if (clean.length < 20) continue;
+
+                // Take first ~300 chars per section for narration (keep it concise)
+                const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
+                let narrationText = '';
+                for (const s of sentences) {
+                    if (narrationText.length + s.length > 350) break;
+                    narrationText += s;
+                }
+                if (narrationText.trim()) {
+                    this._narrationQueue.push(narrationText.trim());
+                }
+            }
+        }
+
+        // Start narrating
+        this._playNextNarration();
+    }
+
+    /**
+     * Play the next segment in the narration queue.
+     */
+    _playNextNarration() {
+        if (this._narrationQueue.length === 0) {
+            this._isNarrating = false;
+            return;
+        }
+
+        this._isNarrating = true;
+        const text = this._narrationQueue.shift();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 0.7;
+
+        // Pick a warm, clear English voice
+        const voices = speechSynthesis.getVoices();
+        const preferred = voices.find(
+            (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Samantha'))
+        ) || voices.find((v) => v.lang.startsWith('en'));
+        if (preferred) utterance.voice = preferred;
+
+        utterance.onend = () => {
+            // Small pause between sections for natural pacing
+            setTimeout(() => this._playNextNarration(), 600);
+        };
+
+        utterance.onerror = () => {
+            this._playNextNarration();
+        };
+
+        speechSynthesis.speak(utterance);
+    }
+
+    /**
+     * Stop all narration immediately (e.g., when user starts speaking or switches tabs).
+     */
+    _stopNarration() {
+        this._narrationQueue = [];
+        this._isNarrating = false;
+        if ('speechSynthesis' in window) {
+            speechSynthesis.cancel();
         }
     }
 

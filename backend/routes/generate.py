@@ -20,6 +20,7 @@ class GenerateRequest(BaseModel):
     topic: str
     focus: str = "general overview"
     session_id: str = ""
+    prior_topics: list[str] = []
 
 
 @router.post("/api/generate")
@@ -35,6 +36,15 @@ async def generate_page(request: GenerateRequest):
         prompt = ENCYCLOPEDIA_GENERATION_PROMPT.format(
             topic=request.topic, focus=request.focus
         )
+
+        # Add context about prior explored topics for narrative continuity
+        if request.prior_topics:
+            context = ", ".join(request.prior_topics)
+            prompt += (
+                f"\n\nCONTEXT: The reader has previously explored these topics: {context}. "
+                f"Where relevant, draw brief connections to these earlier subjects to create "
+                f"a sense of narrative continuity and a connected journey of discovery."
+            )
 
         response = _client.models.generate_content(
             model=IMAGE_GEN_MODEL,

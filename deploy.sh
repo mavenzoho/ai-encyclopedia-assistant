@@ -62,7 +62,7 @@ gcloud run deploy "$SERVICE_NAME" \
     --region "$REGION" \
     --project "$PROJECT_ID" \
     --allow-unauthenticated \
-    --set-env-vars="GOOGLE_API_KEY=$GOOGLE_API_KEY,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION,GOOGLE_GENAI_USE_VERTEXAI=FALSE,LIVE_API_MODEL=gemini-2.5-flash,IMAGE_GEN_MODEL=gemini-2.5-flash-image" \
+    --set-env-vars="GOOGLE_API_KEY=$GOOGLE_API_KEY,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION,GOOGLE_GENAI_USE_VERTEXAI=FALSE,LIVE_API_MODEL=gemini-2.5-flash-native-audio-latest,IMAGE_GEN_MODEL=gemini-2.5-flash-image" \
     --memory=1Gi \
     --cpu=2 \
     --timeout=300 \

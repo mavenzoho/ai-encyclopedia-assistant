@@ -174,8 +174,12 @@ export class VoiceManager {
             this.recorderNode = new AudioWorkletNode(this.captureContext, 'pcm-recorder');
 
             // When the worklet produces PCM chunks, send them over WebSocket
+            // Also clear any playing audio (barge-in / interruption handling)
             this.recorderNode.port.onmessage = (event) => {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    // Barge-in: if the agent is speaking, clear its audio immediately
+                    // so the user can interrupt naturally mid-response
+                    this.clearPlayback();
                     this.ws.send(event.data);
                 }
             };
@@ -258,7 +262,9 @@ export class VoiceManager {
     }
 
     /**
-     * Clear playback buffer (e.g., on interruption).
+     * Clear playback buffer (barge-in / interruption handling).
+     * Called automatically when the user starts speaking to cut off the agent's
+     * current audio response, enabling natural conversational interruptions.
      */
     clearPlayback() {
         if (this.playerNode) {
