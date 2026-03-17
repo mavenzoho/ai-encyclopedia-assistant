@@ -12,30 +12,40 @@ Traditional encyclopedias are static. Digital search results are walls of text. 
 
 ## The Solution
 
-**Encyclopia** is a next-generation AI agent that you can **talk to naturally**. Say any topic - "Tell me about volcanoes" - and Encyclopia will:
+**Encyclopia** is a next-generation AI agent that you can **talk to naturally**. Say any topic — "Tell me about volcanoes" — and Encyclopia will:
 
-1. **Listen** to your voice in real-time using Gemini's Live API
+1. **Listen** to your voice in real-time using Gemini's Live API with natural barge-in support
 2. **Generate** a rich, visual encyclopedia page with interleaved text and AI-generated illustrations
-3. **Narrate** the content aloud while you explore the visual page
+3. **Narrate** content aloud — hover on any section for 2 seconds and a **Mic Timer** fills up, then the AI starts narrating that section
 4. **Animate** illustrations into short videos using Google Veo
-5. **Connect topics** - click any text, heading, or image to explore deeper in a new tab
+5. **Connect topics** — click any text, heading, or image to explore deeper in a new tab
 
-The experience seamlessly weaves together **text, images, audio, and video** in a single fluid output stream - the defining feature of the Creative Storyteller category.
+The experience seamlessly weaves together **text, images, audio, and video** in a single fluid output stream — the defining feature of the Creative Storyteller category.
+
+## See, Hear, and Speak — Beyond the Text Box
+
+Encyclopia breaks the traditional text-box paradigm with three layers of multimodal interaction:
+
+- **See** — AI-generated illustrations, diagrams, and infographics interleaved with text. Two-phase rendering shows text instantly (~2s), then images fill in progressively.
+- **Hear** — Hover-to-hear: pause your mouse on any section for 2 seconds and a circular mic timer fills up. When complete, the AI narrates that section aloud. Feature help bubbles on the welcome page also speak when hovered.
+- **Speak** — Talk naturally via the Gemini Live API. Interrupt anytime (barge-in). Click the mic and say any topic — the AI responds with voice and generates visual content simultaneously.
 
 ## Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **Real-time Voice** | Speak naturally, interrupt anytime (barge-in support) |
-| **Interleaved Output** | Text + AI-generated illustrations woven together in one response |
-| **DK Books-Style Layout** | Beautiful, magazine-quality visual encyclopedia pages |
+| **Voice-First Design** | Large mic button front and center — speak naturally to explore any topic |
+| **Barge-In Support** | Interrupt the AI mid-sentence — audio clears instantly and it listens to you |
+| **Hover-to-Hear (Mic Timer)** | Hover on any encyclopedia section for 2s — a circular mic timer fills, then AI narrates it |
+| **Feature Help Bubbles** | Animated bubbles on the welcome page explain each feature via voice on hover |
+| **Two-Phase Rendering** | Text loads instantly (~2s), images fill in after (~10s) — no waiting on a blank screen |
+| **Interleaved Output** | Text + AI-generated illustrations woven together in one Gemini API response |
+| **DK Books-Style Layout** | Beautiful, magazine-quality visual encyclopedia pages with themed colors |
 | **Click-to-Explore** | Click any heading, bold term, paragraph, or image to explore in a new tab |
 | **Tabbed Navigation** | Browse multiple topics simultaneously with background loading |
-| **Video Generation** | Animate any illustration into a short video clip using Google Veo |
-| **Audio Narration** | Encyclopia narrates each page section for a documentary-like experience |
-| **Topic Continuity** | Encyclopia draws connections between previously explored topics |
-| **Themed Visuals** | Color themes adapt to topic categories (space, nature, history, etc.) |
-| **Voice Transcription** | Live overlay shows what you're saying and Encyclopia's response |
+| **Image-to-Video** | Animate any illustration into a short video clip using Google Veo 2.0 |
+| **Voice Transcription** | Live overlay shows what you're saying and what the AI is responding |
+| **Distinct Persona** | Deep male voice (Charon) with enthusiastic, educational personality |
 
 ## Architecture
 
