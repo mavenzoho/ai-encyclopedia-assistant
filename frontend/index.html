@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Encyclopia — AI Visual Storyteller</title>
+    <title>Encyclopia</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/encyclopedia.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -18,10 +18,22 @@
             </div>
         </div>
         <div class="topbar-center">
-            <span id="transcript-text" class="topbar-status"></span>
+            <div id="transcript-bar" class="transcript">
+                <span id="transcript-text"></span>
+            </div>
         </div>
         <div class="topbar-right">
-            <span id="status-text">Click mic to start</span>
+            <div id="voice-controls">
+                <button id="mic-btn" class="mic-button" aria-label="Toggle microphone">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
+                <span id="status-text">Click mic to start</span>
+            </div>
         </div>
     </header>
 
@@ -32,25 +44,60 @@
 
     <!-- Main Content Area -->
     <main id="encyclopedia-viewport">
-        <!-- Welcome Screen - Voice-First Design -->
+        <!-- Welcome Screen -->
         <div id="welcome-screen" class="welcome">
             <div class="welcome-content">
                 <h2>Encyclopia</h2>
-                <p class="welcome-tagline">Your AI-powered visual encyclopedia</p>
+                <p class="welcome-sub">Your AI visual encyclopedia — just speak</p>
 
-                <!-- Hero Mic Button -->
-                <div class="hero-mic-wrapper">
-                    <button id="hero-mic-btn" class="mic-btn-main" aria-label="Start talking to Atlas">
-                        <img src="/static/img/Mic Icon.png" class="mic-img" alt="Microphone" />
-                        <span class="mic-text">Tap to speak</span>
+                <!-- Hero Mic -->
+                <button id="hero-mic-btn" class="hero-mic" aria-label="Start speaking">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                    <span class="hero-mic-text">Tap to speak</span>
+                </button>
+                <p class="hero-examples">"Tell me about black holes" &bull; "Show me dinosaurs" &bull; "How do volcanoes work?"</p>
+
+                <!-- Floating feature help bubbles -->
+                <div class="feature-bubbles">
+                    <div class="feature-bubble" data-feature="voice">
+                        <span class="bubble-icon">&#127908;</span>
+                        <span class="bubble-label">Voice</span>
+                    </div>
+                    <div class="feature-bubble" data-feature="hover">
+                        <span class="bubble-icon">&#128065;</span>
+                        <span class="bubble-label">Hover to Hear</span>
+                    </div>
+                    <div class="feature-bubble" data-feature="click">
+                        <span class="bubble-icon">&#128433;</span>
+                        <span class="bubble-label">Click to Explore</span>
+                    </div>
+                    <div class="feature-bubble" data-feature="video">
+                        <span class="bubble-icon">&#127916;</span>
+                        <span class="bubble-label">Image to Video</span>
+                    </div>
+                </div>
+
+                <div class="welcome-divider"><span>or type a topic</span></div>
+
+                <!-- Search Input -->
+                <div class="search-bar search-compact">
+                    <input type="text" id="search-input" class="search-input"
+                           placeholder="Type any topic to explore..."
+                           autocomplete="off" />
+                    <button id="search-btn" class="search-btn" aria-label="Search">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
                     </button>
                 </div>
-                <p class="hero-mic-hint">"Tell me about black holes" &bull; "Show me dinosaurs" &bull; "How do volcanoes work?"</p>
 
-                <!-- Divider -->
-                <div class="welcome-divider"><span>or pick a topic</span></div>
-
-                <!-- Compact suggestion chips -->
+                <p class="welcome-hint">Or click a topic to get started:</p>
                 <div class="suggestion-chips">
                     <button class="chip" data-topic="solar system">
                         <span class="chip-icon">&#9728;&#65039;</span>
@@ -75,19 +122,6 @@
                     <button class="chip" data-topic="deep ocean">
                         <span class="chip-icon">&#128011;</span>
                         Deep Ocean
-                    </button>
-                </div>
-
-                <!-- Small search as fallback -->
-                <div class="search-bar search-bar-compact">
-                    <input type="text" id="search-input" class="search-input"
-                           placeholder="Or type a topic..."
-                           autocomplete="off" />
-                    <button id="search-btn" class="search-btn" aria-label="Search">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
                     </button>
                 </div>
             </div>
@@ -121,23 +155,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Floating Mic (only visible when browsing pages, hidden on welcome) -->
-    <div id="floating-mic" class="floating-mic-wrap">
-        <button id="mic-btn" class="mic-btn-main" aria-label="Toggle microphone">
-            <img src="/static/img/Mic Icon.png" class="mic-img" alt="Microphone" />
-            <span class="mic-text">Tap to speak</span>
-        </button>
-    </div>
-
-    <!-- Smart Help Bubble -->
-    <div id="help-bubble" class="help-bubble">
-        <div class="help-bubble-content">
-            <button class="help-bubble-close" id="help-bubble-close" aria-label="Close">&times;</button>
-            <p id="help-bubble-text"></p>
-        </div>
-        <div class="help-bubble-arrow"></div>
-    </div>
 
     <!-- Scripts -->
     <script src="/static/js/voice.js" type="module"></script>

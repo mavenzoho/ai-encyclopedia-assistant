@@ -505,3 +505,92 @@
         font-size: 1.25rem;
     }
 }
+
+/* ========================================
+   Hover-to-Hear: Circular Mic Timer
+   When user hovers on a section, a radial mic
+   timer fills up. If they stay, Atlas narrates it.
+   ======================================== */
+
+.hover-hear-indicator {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.encyclopedia-section {
+    position: relative;
+}
+
+.encyclopedia-section:hover .hover-hear-indicator {
+    opacity: 1;
+}
+
+.hover-hear-ring {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(26, 26, 46, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.hover-hear-ring svg.mic-icon-sm {
+    width: 16px;
+    height: 16px;
+    stroke: white;
+    fill: none;
+    stroke-width: 2;
+    z-index: 2;
+}
+
+/* SVG circular progress ring */
+.hover-hear-ring svg.progress-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    transform: rotate(-90deg);
+}
+
+.hover-hear-ring .progress-ring-circle {
+    fill: none;
+    stroke: var(--color-accent, #e94560);
+    stroke-width: 3;
+    stroke-dasharray: 113; /* 2 * PI * 18 */
+    stroke-dashoffset: 113;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+/* Active state — timer is filling */
+.hover-hear-indicator.filling .progress-ring-circle {
+    transition: stroke-dashoffset 1.8s linear;
+    stroke-dashoffset: 0;
+}
+
+/* Triggered state — Atlas is speaking about this section */
+.hover-hear-indicator.triggered .hover-hear-ring {
+    background: var(--color-accent, #e94560);
+    animation: hearPulse 1.5s ease-out infinite;
+}
+
+.hover-hear-indicator.triggered .progress-ring-circle {
+    stroke-dashoffset: 0;
+    stroke: white;
+}
+
+@keyframes hearPulse {
+    0% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.5); }
+    70% { box-shadow: 0 0 0 12px rgba(233, 69, 96, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0); }
+}

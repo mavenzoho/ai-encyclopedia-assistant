@@ -16,6 +16,9 @@ export class EncyclopediaRenderer {
         // Callback when user requests video from an image
         this.onVideoRequest = null;
 
+        // Callback when user hovers long enough to trigger voice commentary
+        this.onHoverHear = null;
+
         // Color themes for different topic categories
         this.topicThemes = {
             space:   { primary: '#1b2631', primaryDark: '#0d1317', accent: '#5dade2', bg: '#eaf2f8' },
@@ -130,6 +133,52 @@ export class EncyclopediaRenderer {
 
         el.className = `encyclopedia-section ${layout}`;
         el.style.animationDelay = `${0.1 + index * 0.1}s`;
+
+        // Hover-to-hear indicator
+        if (hasText) {
+            const indicator = document.createElement('div');
+            indicator.className = 'hover-hear-indicator';
+            indicator.innerHTML = `
+                <div class="hover-hear-ring">
+                    <svg class="progress-ring" viewBox="0 0 40 40">
+                        <circle class="progress-ring-circle" cx="20" cy="20" r="18"/>
+                    </svg>
+                    <svg class="mic-icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                    </svg>
+                </div>
+            `;
+            el.appendChild(indicator);
+
+            // Hover timer logic
+            let hoverTimer = null;
+            el.addEventListener('mouseenter', () => {
+                indicator.classList.remove('triggered');
+                indicator.classList.add('filling');
+                hoverTimer = setTimeout(() => {
+                    indicator.classList.remove('filling');
+                    indicator.classList.add('triggered');
+                    // Extract topic from section heading or text
+                    let topic = '';
+                    const headings = el.querySelectorAll('h1, h2, h3');
+                    for (const h of headings) {
+                        const t = h.textContent.trim();
+                        if (!this._isGenericHeading(t)) { topic = t; break; }
+                    }
+                    if (!topic) topic = this._extractTopicFromText(section.text);
+                    if (topic && this.onHoverHear) {
+                        this.onHoverHear(topic, section.text);
+                    }
+                }, 2000); // 2 seconds hover to trigger
+            });
+
+            el.addEventListener('mouseleave', () => {
+                clearTimeout(hoverTimer);
+                indicator.classList.remove('filling', 'triggered');
+            });
+        }
 
         // Text content - entire section is clickable
         if (hasText) {

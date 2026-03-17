@@ -20,31 +20,17 @@ class GenerateRequest(BaseModel):
     topic: str
     focus: str = "general overview"
     session_id: str = ""
-    prior_topics: list[str] = []
 
 
 @router.post("/api/generate")
 async def generate_page(request: GenerateRequest):
-    """Generate an encyclopedia page and return it directly in the response.
-
-    Returns the full page data (text + base64 images) as JSON.
-    The frontend renders it directly without needing the content WebSocket.
-    """
+    """Generate an encyclopedia page with interleaved text + images."""
     logger.info(f"Generate request: topic={request.topic}, focus={request.focus}")
 
     try:
         prompt = ENCYCLOPEDIA_GENERATION_PROMPT.format(
             topic=request.topic, focus=request.focus
         )
-
-        # Add context about prior explored topics for narrative continuity
-        if request.prior_topics:
-            context = ", ".join(request.prior_topics)
-            prompt += (
-                f"\n\nCONTEXT: The reader has previously explored these topics: {context}. "
-                f"Where relevant, draw brief connections to these earlier subjects to create "
-                f"a sense of narrative continuity and a connected journey of discovery."
-            )
 
         response = _client.models.generate_content(
             model=IMAGE_GEN_MODEL,
@@ -91,6 +77,54 @@ async def generate_page(request: GenerateRequest):
 
     except Exception as e:
         logger.error(f"Generate endpoint error: {e}", exc_info=True)
+        return JSONResponse(
+            content={"status": "error", "message": str(e)},
+            status_code=500,
+        )
+
+
+@router.post("/api/generate-text")
+async def generate_text_only(request: GenerateRequest):
+    """Generate TEXT-ONLY encyclopedia content (fast, ~2s).
+    Used for instant page rendering before images load."""
+    logger.info(f"Text-only request: topic={request.topic}")
+
+    try:
+        prompt = ENCYCLOPEDIA_GENERATION_PROMPT.format(
+            topic=request.topic, focus=request.focus
+        )
+
+        response = _client.models.generate_content(
+            model=IMAGE_GEN_MODEL,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                response_modalities=["TEXT"],
+            ),
+        )
+
+        text = ""
+        for part in response.parts:
+            if part.text:
+                text += part.text
+
+        # Split into sections by headings
+        sections = []
+        for block in text.split("\n\n"):
+            block = block.strip()
+            if block:
+                sections.append({"text": block, "images": []})
+
+        return JSONResponse(content={
+            "type": "encyclopedia_page",
+            "status": "success",
+            "topic": request.topic,
+            "focus": request.focus,
+            "sections": sections,
+            "text_only": True,
+        })
+
+    except Exception as e:
+        logger.error(f"Text-only generation error: {e}", exc_info=True)
         return JSONResponse(
             content={"status": "error", "message": str(e)},
             status_code=500,
