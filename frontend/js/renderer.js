@@ -50,6 +50,7 @@ export class EncyclopediaRenderer {
     renderPage(pageData) {
         this.container.classList.remove('hidden');
         this.container.innerHTML = '';
+        this._currentTopic = pageData.topic; // Store for context in click-to-explore
 
         const theme = this._getTheme(pageData.topic);
         this.container.style.setProperty('--primary', theme.primary);
@@ -222,7 +223,7 @@ export class EncyclopediaRenderer {
                     if (!topic) topic = this._extractTopicFromText(section.text);
                     if (topic && this.onExploreClick) {
                         this._showRipple(wrapper, e);
-                        this.onExploreClick(topic);
+                        this.onExploreClick(topic, this._currentTopic);
                     }
                 });
 
@@ -295,7 +296,7 @@ export class EncyclopediaRenderer {
                 e.stopPropagation();
                 if (topic && this.onExploreClick) {
                     this._showRipple(heading, e);
-                    this.onExploreClick(topic);
+                    this.onExploreClick(topic, this._currentTopic);
                 }
             });
         });
@@ -309,7 +310,7 @@ export class EncyclopediaRenderer {
                     e.stopPropagation();
                     if (this.onExploreClick) {
                         this._showRipple(strong, e);
-                        this.onExploreClick(term);
+                        this.onExploreClick(term, this._currentTopic);
                     }
                 });
             }
@@ -329,7 +330,7 @@ export class EncyclopediaRenderer {
                 if (selectedText && selectedText.length > 2) {
                     if (this.onExploreClick) {
                         this._showRipple(p, e);
-                        this.onExploreClick(selectedText);
+                        this.onExploreClick(selectedText, this._currentTopic);
                     }
                     return;
                 }
@@ -338,7 +339,7 @@ export class EncyclopediaRenderer {
                 const topic = this._extractTopicFromElement(p);
                 if (topic && this.onExploreClick) {
                     this._showRipple(p, e);
-                    this.onExploreClick(topic);
+                    this.onExploreClick(topic, this._currentTopic);
                 }
             });
         });
@@ -356,7 +357,7 @@ export class EncyclopediaRenderer {
                     : this._extractTopicFromText(li.textContent);
                 if (topic && this.onExploreClick) {
                     this._showRipple(li, e);
-                    this.onExploreClick(topic);
+                    this.onExploreClick(topic, this._currentTopic);
                 }
             });
         });
@@ -449,7 +450,7 @@ export class EncyclopediaRenderer {
             chip.textContent = topic;
             chip.addEventListener('click', () => {
                 if (this.onExploreClick) {
-                    this.onExploreClick(topic);
+                    this.onExploreClick(topic, this._currentTopic);
                 }
             });
             chipsContainer.appendChild(chip);

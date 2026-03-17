@@ -55,6 +55,12 @@ class App {
         // Create a renderer
         this.renderer = new EncyclopediaRenderer(this.pageContainer);
 
+        // Preload speech voices (Chrome loads them async)
+        if ('speechSynthesis' in window) {
+            speechSynthesis.getVoices();
+            speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+        }
+
         this._initContentWebSocket();
         this._initVoiceCallbacks();
         this._initUI();
@@ -206,9 +212,11 @@ class App {
             });
         }
 
-        // Wire up renderer click-to-explore
-        this.renderer.onExploreClick = (topic) => {
-            this._openTopic(topic);
+        // Wire up renderer click-to-explore — pass parent topic as context
+        this.renderer.onExploreClick = (topic, parentTopic) => {
+            // Add parent context so "Displaced People" becomes "Displaced People (Aswan Dam)"
+            const focus = parentTopic ? `in the context of ${parentTopic}` : 'general overview';
+            this._openTopic(topic, focus);
         };
 
         // Wire up renderer image-to-video (replaces image in-place)
@@ -231,10 +239,15 @@ class App {
                 .replace(/^[-*]\s+/gm, '')
                 .trim();
 
-            // Get first 2-3 sentences
+            // Get up to ~600 chars of the section for a fuller narration
             const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
-            let narration = sentences.slice(0, 3).join(' ').trim();
-            if (narration.length > 400) narration = narration.substring(0, 400) + '...';
+            let narration = '';
+            for (const s of sentences) {
+                if (narration.length + s.length > 600) break;
+                narration += s;
+            }
+            narration = narration.trim();
+            if (!narration) narration = clean.substring(0, 300);
 
             if (!narration) return;
 
@@ -268,7 +281,11 @@ class App {
                 hoverTimer = setTimeout(() => {
                     const feature = bubble.dataset.feature;
                     const text = explanations[feature];
-                    if (!text || !('speechSynthesis' in window)) return;
+                    if (!text) return;
+                    if (!('speechSynthesis' in window)) {
+                        console.warn('SpeechSynthesis not available');
+                        return;
+                    }
 
                     speechSynthesis.cancel();
                     bubble.classList.add('speaking');
